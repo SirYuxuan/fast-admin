@@ -29,6 +29,13 @@
             <artifactId>sa-token-redis-template</artifactId>
         </dependency>
 
+        <!-- Lombok (compile only) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Fast 基础模块 -->
         <dependency>
             <groupId>cc.oofo</groupId>

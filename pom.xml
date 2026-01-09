@@ -38,6 +38,7 @@
         <postgresql.version>42.7.8</postgresql.version>
         <mysql.connector.version>9.1.0</mysql.connector.version>
         <mybatis.plus.join.version>1.5.4</mybatis.plus.join.version>
+        <commons.pool2.version>2.12.0</commons.pool2.version>
     </properties>
 
     <dependencyManagement>
@@ -53,6 +54,12 @@
                 <groupId>com.mysql</groupId>
                 <artifactId>mysql-connector-j</artifactId>
                 <version>${mysql.connector.version}</version>
+            </dependency>
+            <!-- Commons Pool2 连接池工具 -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-pool2</artifactId>
+                <version>${commons.pool2.version}</version>
             </dependency>
             <!-- PostgreSQL 数据库驱动 -->
             <dependency>
