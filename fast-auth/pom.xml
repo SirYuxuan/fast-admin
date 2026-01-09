@@ -12,6 +12,12 @@
     <groupId>cc.oofo</groupId>
     <artifactId>fast-auth</artifactId>
     <dependencies>
+        <!-- Web（仅用于 Filter/Servlet API 编译期依赖） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- SaToken 鉴权 -->
         <dependency>
             <groupId>cn.dev33</groupId>

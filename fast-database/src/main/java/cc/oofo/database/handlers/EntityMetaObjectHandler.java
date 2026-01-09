@@ -8,10 +8,7 @@ import org.springframework.stereotype.Component;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 
 import cc.oofo.utils.IdUtil;
-import cc.oofo.utils.RedisUtil;
-import cc.oofo.utils.constants.RedisKeys;
-import cn.dev33.satoken.spring.SpringMVCUtil;
-import cn.dev33.satoken.stp.StpUtil;
+import cc.oofo.utils.context.AuditContextHolder;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -24,7 +21,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EntityMetaObjectHandler implements MetaObjectHandler {
 
-    private final RedisUtil redisUtil;
+    private static final String DEFAULT_USER_ID = "NOT_LOGIN";
+    private static final String DEFAULT_USER_NAME = "系统管理员";
 
     /**
      * 插入填充
@@ -33,12 +31,12 @@ public class EntityMetaObjectHandler implements MetaObjectHandler {
     public void insertFill(MetaObject metaObject) {
         this.strictInsertFill(metaObject, "id", String.class, IdUtil.generateId());
         this.strictInsertFill(metaObject, "createdAt", Timestamp.class, new Timestamp(System.currentTimeMillis()));
-        this.strictInsertFill(metaObject, "createdBy", String.class, getNickName());
-        this.strictInsertFill(metaObject, "createdId", String.class, getId());
+        this.strictInsertFill(metaObject, "createdBy", String.class, getUserName());
+        this.strictInsertFill(metaObject, "createdId", String.class, getUserId());
         this.strictInsertFill(metaObject, "isDeleted", Boolean.class, false);
         this.strictInsertFill(metaObject, "updatedAt", Timestamp.class, new Timestamp(System.currentTimeMillis()));
-        this.strictInsertFill(metaObject, "updatedBy", String.class, getNickName());
-        this.strictInsertFill(metaObject, "updatedId", String.class, getId());
+        this.strictInsertFill(metaObject, "updatedBy", String.class, getUserName());
+        this.strictInsertFill(metaObject, "updatedId", String.class, getUserId());
 
     }
 
@@ -48,9 +46,9 @@ public class EntityMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void updateFill(MetaObject metaObject) {
         // 更新时间
-        this.strictInsertFill(metaObject, "updatedAt", Timestamp.class, new Timestamp(System.currentTimeMillis()));
-        this.strictInsertFill(metaObject, "updatedBy", String.class, getNickName());
-        this.strictInsertFill(metaObject, "updatedId", String.class, getId());
+        this.strictUpdateFill(metaObject, "updatedAt", Timestamp.class, new Timestamp(System.currentTimeMillis()));
+        this.strictUpdateFill(metaObject, "updatedBy", String.class, getUserName());
+        this.strictUpdateFill(metaObject, "updatedId", String.class, getUserId());
     }
 
     /**
@@ -58,11 +56,8 @@ public class EntityMetaObjectHandler implements MetaObjectHandler {
      * 
      * @return 用户ID
      */
-    public String getId() {
-        if (SpringMVCUtil.isWeb() && StpUtil.isLogin()) {
-            return StpUtil.getLoginIdAsString();
-        }
-        return "NOT_LOGIN";
+    public String getUserId() {
+        return AuditContextHolder.getUserIdOrDefault(DEFAULT_USER_ID);
     }
 
     /**
@@ -70,12 +65,8 @@ public class EntityMetaObjectHandler implements MetaObjectHandler {
      * 
      * @return 昵称
      */
-    public String getNickName() {
-        if (SpringMVCUtil.isWeb() && StpUtil.isLogin()) {
-            Object nickName = redisUtil.getVal(RedisKeys.SYSTEM_USER_NICKNAME_PREFIX + StpUtil.getLoginIdAsString());
-            return nickName != null ? nickName.toString() : "系统管理员";
-        }
-        return "系统管理员";
+    public String getUserName() {
+        return AuditContextHolder.getUserNameOrDefault(DEFAULT_USER_NAME);
     }
 
 }

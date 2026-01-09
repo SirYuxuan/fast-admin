@@ -42,20 +42,6 @@
             <artifactId>fast-utils</artifactId>
         </dependency>
 
-        <!-- SaToken 鉴权 -->
-        <dependency>
-            <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-spring-boot3-starter</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Redis 数据库 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
     </dependencies>
 
 </project>

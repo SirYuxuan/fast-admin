@@ -11,6 +11,7 @@ import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import cc.oofo.auth.security.filter.AuditContextFilter;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.Data;
@@ -26,10 +27,13 @@ public class WebSecurityConfig implements WebMvcConfigurer {
 
     private final CorsProperties corsProperties;
     private final InterceptorProperties interceptorProperties;
+    private final AuditContextFilter auditContextFilter;
 
-    public WebSecurityConfig(CorsProperties corsProperties, InterceptorProperties interceptorProperties) {
+    public WebSecurityConfig(CorsProperties corsProperties, InterceptorProperties interceptorProperties,
+            AuditContextFilter auditContextFilter) {
         this.corsProperties = corsProperties;
         this.interceptorProperties = interceptorProperties;
+        this.auditContextFilter = auditContextFilter;
     }
 
     /**
@@ -64,11 +68,19 @@ public class WebSecurityConfig implements WebMvcConfigurer {
      * 注册拦截器
      */
     @Override
-    public void addInterceptors(@SuppressWarnings("null") InterceptorRegistry registry) {
+    @SuppressWarnings("null")
+    public void addInterceptors(InterceptorRegistry registry) {
         // 注册 Sa-Token 拦截器，校验规则为 StpUtil.checkLogin() 登录校验。
+        String[] includePatterns = interceptorProperties.getAuth().getIncludePatterns().toArray(new String[0]);
+        String[] excludePatterns = interceptorProperties.getAuth().getExcludePatterns().toArray(new String[0]);
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
-                .addPathPatterns(interceptorProperties.getAuth().getIncludePatterns().toArray(new String[0]))
-                .excludePathPatterns(interceptorProperties.getAuth().getExcludePatterns().toArray(new String[0]));
+                .addPathPatterns(includePatterns)
+                .excludePathPatterns(excludePatterns);
+
+        // 将登录用户写入审计上下文，供持久层自动填充
+        registry.addInterceptor(auditContextFilter)
+                .addPathPatterns(includePatterns)
+                .excludePathPatterns(excludePatterns);
     }
 
     /**
