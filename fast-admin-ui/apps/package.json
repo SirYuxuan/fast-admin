@@ -1,12 +1,12 @@
 {
-  "name": "@vben/playground",
+  "name": "fast-admin",
   "version": "5.5.9",
-  "homepage": "https://vben.pro",
+  "homepage": "https://fast-admin.pro",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
-    "directory": "playground"
+    "directory": "apps"
   },
   "license": "MIT",
   "author": {
@@ -20,16 +20,12 @@
     "build:analyze": "pnpm vite build --mode analyze",
     "dev": "pnpm vite --mode development",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit --skipLibCheck",
-    "test:e2e": "playwright test",
-    "test:e2e-ui": "playwright test --ui",
-    "test:e2e-codegen": "playwright codegen"
+    "typecheck": "vue-tsc --noEmit --skipLibCheck"
   },
   "imports": {
     "#/*": "./src/*"
   },
   "dependencies": {
-    "@tanstack/vue-query": "catalog:",
     "@vben-core/menu-ui": "workspace:*",
     "@vben/access": "workspace:*",
     "@vben/common-ui": "workspace:*",
@@ -48,12 +44,8 @@
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
     "dayjs": "catalog:",
-    "json-bigint": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
-  },
-  "devDependencies": {
-    "@types/json-bigint": "catalog:"
   }
 }
