@@ -8,10 +8,8 @@ packages:
   - packages/@core/*
   - packages/effects/*
   - packages/business/*
-  - apps/*
+  - apps
   - scripts/*
-  - docs
-  - playground
 
 catalog:
   '@ast-grep/napi': ^0.37.0
