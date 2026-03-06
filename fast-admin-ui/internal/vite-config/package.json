@@ -43,6 +43,7 @@
     "@types/archiver": "catalog:",
     "@types/html-minifier-terser": "catalog:",
     "@vben/node-utils": "workspace:*",
+    "@vben/tsconfig": "workspace:*",
     "@vitejs/plugin-vue": "catalog:",
     "@vitejs/plugin-vue-jsx": "catalog:",
     "dayjs": "catalog:",
