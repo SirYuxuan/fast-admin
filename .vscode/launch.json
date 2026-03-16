@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "SudokuRecognizeService",
+            "request": "launch",
+            "mainClass": "cc.oofo.ai.sudoku.SudokuRecognizeService",
+            "projectName": "fast-ai"
+        },
+        {
+            "type": "java",
             "name": "FastApplication",
             "request": "launch",
             "mainClass": "cc.oofo.FastApplication",

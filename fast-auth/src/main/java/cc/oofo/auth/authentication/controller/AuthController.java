@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 import cc.oofo.auth.authentication.dto.LoginDto;
 import cc.oofo.auth.authentication.dto.LoginRsDto;
 import cc.oofo.auth.authentication.service.AuthService;
-import cc.oofo.framework.core.controller.BaseController;
 import cc.oofo.framework.web.response.Rs;
 import cn.dev33.satoken.stp.StpUtil;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 鉴权控制器
@@ -22,8 +22,11 @@ import cn.dev33.satoken.stp.StpUtil;
  * @since 2025/11/13
  */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping(path = "/auth")
-public class AuthController extends BaseController<AuthService> {
+public class AuthController {
+
+    private final AuthService authService;
 
     /**
      * 登录
@@ -34,7 +37,7 @@ public class AuthController extends BaseController<AuthService> {
     @PostMapping(path = "/login")
     public Rs<LoginRsDto> login(@RequestBody LoginDto loginDto) {
         LoginRsDto loginResult = new LoginRsDto();
-        loginResult.setAccessToken(baseService.login(loginDto));
+        loginResult.setAccessToken(authService.login(loginDto));
         return Rs.ok(loginResult);
     }
 
@@ -45,7 +48,7 @@ public class AuthController extends BaseController<AuthService> {
      */
     @GetMapping(path = "/codes")
     public Rs<List<String>> codes() {
-        return Rs.ok(baseService.codes());
+        return Rs.ok(authService.codes());
     }
 
     /**

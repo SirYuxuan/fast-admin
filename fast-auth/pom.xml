@@ -36,25 +36,23 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Fast 基础模块 -->
+        <!-- Fast 通用模块 -->
         <dependency>
             <groupId>cc.oofo</groupId>
-            <artifactId>fast-framework</artifactId>
+            <artifactId>fast-common</artifactId>
         </dependency>
-
-
-        <!-- Fast 系统模块 -->
         <dependency>
             <groupId>cc.oofo</groupId>
-            <artifactId>fast-system-api</artifactId>
+            <artifactId>fast-framework-web</artifactId>
         </dependency>
-        <!-- Fast 缓存模块 -->
         <dependency>
             <groupId>cc.oofo</groupId>
-            <artifactId>fast-cache</artifactId>
+            <artifactId>fast-framework-cache</artifactId>
         </dependency>
-
-
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-system</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

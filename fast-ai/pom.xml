@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cc.oofo</groupId>
+        <artifactId>fast-admin</artifactId>
+        <version>0.0.1-dev</version>
+    </parent>
+
+    <groupId>cc.oofo</groupId>
+    <artifactId>fast-ai</artifactId>
+
+    <dependencies>
+        <!-- 阿里百炼AI -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>dashscope-sdk-java</artifactId>
+        </dependency>
+        <!-- Fast 通用模块 -->
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-common</artifactId>
+        </dependency>
+        <!-- Fast 数据模块 -->
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-framework-data</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

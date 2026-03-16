@@ -19,17 +19,10 @@
                   <artifactId>fast-auth</artifactId>
             </dependency>
 
-            <!-- Fast 缓存模块 -->
-            <dependency>
-                  <groupId>cc.oofo</groupId>
-                  <artifactId>fast-cache</artifactId>
-            </dependency>
-
-
             <!-- Fast 系统模块 -->
             <dependency>
                   <groupId>cc.oofo</groupId>
-                  <artifactId>fast-system-facade</artifactId>
+                  <artifactId>fast-system</artifactId>
             </dependency>
 
 
