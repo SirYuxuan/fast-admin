@@ -4,6 +4,8 @@ import java.io.IOException;
 
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -30,7 +32,8 @@ public class AuditContextFilter implements HandlerInterceptor {
     private final RedisUtil redisUtil;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+            @NonNull Object handler)
             throws IOException {
         if (StpUtil.isLogin()) {
             String userId = StpUtil.getLoginIdAsString();
@@ -47,7 +50,8 @@ public class AuditContextFilter implements HandlerInterceptor {
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+            @NonNull Object handler, @Nullable Exception ex)
             throws Exception {
         AuditContextHolder.clear();
     }
