@@ -33,5 +33,17 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "maven.terminal.useJavaHome": true,
     "maven.executable.path": "mvn",
+    "java.jdt.ls.java.home": "/Users/yuxuan/.local/share/mise/installs/java/25.0.2",
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "/Users/yuxuan/.local/share/mise/installs/java/corretto-21"
+        },
+        {
+            "name": "JavaSE-25",
+            "path": "/Users/yuxuan/.local/share/mise/installs/java/25.0.2",
+            "default": true
+        }
+    ],
     "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m"
 }
