@@ -168,6 +168,8 @@ hs_err_pid*.log
 uploads/
 temp/
 cache/
+!fast-admin-ui/packages/@core/base/shared/src/cache/
+!fast-admin-ui/packages/@core/base/shared/src/cache/**
 
 
 node_modules
