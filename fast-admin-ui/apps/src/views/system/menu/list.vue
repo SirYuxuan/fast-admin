@@ -5,7 +5,7 @@ import type {
 } from '#/adapter/vxe-table';
 
 import { AccessControl } from '@vben/access';
-import { Page, useVbenDrawer } from '@vben/common-ui';
+import { Page, useVbenModal } from '@vben/common-ui';
 import { IconifyIcon, Plus } from '@vben/icons';
 
 import { MenuBadge } from '@vben-core/menu-ui';
@@ -18,7 +18,7 @@ import { deleteMenu, getMenuList, SystemMenuApi } from '#/api/system/menu';
 import { useColumns } from './data';
 import Form from './modules/form.vue';
 
-const [FormDrawer, formDrawerApi] = useVbenDrawer({
+const [FormModal, formModalApi] = useVbenModal({
   connectedComponent: Form,
   destroyOnClose: true,
 });
@@ -83,13 +83,13 @@ function onRefresh() {
   gridApi.query();
 }
 function onEdit(row: SystemMenuApi.SystemMenu) {
-  formDrawerApi.setData(row).open();
+  formModalApi.setData(row).open();
 }
 function onCreate() {
-  formDrawerApi.setData({}).open();
+  formModalApi.setData({}).open();
 }
 function onAppend(row: SystemMenuApi.SystemMenu) {
-  formDrawerApi.setData({ pid: row.id }).open();
+  formModalApi.setData({ pid: row.id }).open();
 }
 
 function onDelete(row: SystemMenuApi.SystemMenu) {
@@ -113,7 +113,7 @@ function onDelete(row: SystemMenuApi.SystemMenu) {
 </script>
 <template>
   <Page auto-content-height>
-    <FormDrawer @success="onRefresh" />
+    <FormModal @success="onRefresh" />
     <Grid>
       <template #toolbar-tools>
         <AccessControl :codes="['system:menu:add']">

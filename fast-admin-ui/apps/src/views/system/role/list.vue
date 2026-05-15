@@ -7,7 +7,7 @@ import type {
 } from '#/adapter/vxe-table';
 import type { SystemRoleApi } from '#/api';
 
-import { Page, useVbenDrawer } from '@vben/common-ui';
+import { Page, useVbenModal } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
 
 import { Button, message, Modal } from 'ant-design-vue';
@@ -18,7 +18,7 @@ import { deleteRole, getRoleList, updateRole } from '#/api';
 import { useColumns, useGridFormSchema } from './data';
 import Form from './modules/form.vue';
 
-const [FormDrawer, formDrawerApi] = useVbenDrawer({
+const [FormModal, formModalApi] = useVbenModal({
   connectedComponent: Form,
   destroyOnClose: true,
 });
@@ -120,7 +120,7 @@ async function onStatusChange(
 }
 
 function onEdit(row: SystemRoleApi.SystemRole) {
-  formDrawerApi.setData(row).open();
+  formModalApi.setData(row).open();
 }
 
 function onDelete(row: SystemRoleApi.SystemRole) {
@@ -147,12 +147,12 @@ function onRefresh() {
 }
 
 function onCreate() {
-  formDrawerApi.setData({}).open();
+  formModalApi.setData({}).open();
 }
 </script>
 <template>
   <Page auto-content-height>
-    <FormDrawer @success="onRefresh" />
+    <FormModal @success="onRefresh" />
     <Grid table-title="角色列表">
       <template #toolbar-tools>
         <Button type="primary" @click="onCreate">
