@@ -11,47 +11,50 @@
 
     <groupId>cc.oofo</groupId>
     <artifactId>fast-auth</artifactId>
+
     <dependencies>
+        <!-- Fast 基础设施 -->
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-framework</artifactId>
+        </dependency>
+
+        <!-- Fast 系统模块（加载用户权限） -->
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-system</artifactId>
+        </dependency>
+
         <!-- Web（仅用于 Filter/Servlet API 编译期依赖） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <scope>provided</scope>
         </dependency>
+
         <!-- SaToken 鉴权 -->
         <dependency>
             <groupId>cn.dev33</groupId>
             <artifactId>sa-token-spring-boot3-starter</artifactId>
         </dependency>
+
         <!-- Sa-Token 整合 RedisTemplate -->
         <dependency>
             <groupId>cn.dev33</groupId>
             <artifactId>sa-token-redis-template</artifactId>
         </dependency>
 
-        <!-- Lombok (compile only) -->
+        <!-- MyBatis-Plus（EntityMetaObjectHandler 编译期依赖） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- Fast 通用模块 -->
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-framework-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-framework-cache</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-system</artifactId>
         </dependency>
     </dependencies>
 
