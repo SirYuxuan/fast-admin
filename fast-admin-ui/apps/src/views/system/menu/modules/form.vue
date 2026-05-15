@@ -7,7 +7,7 @@ import type { VbenFormSchema } from '#/adapter/form';
 
 import { computed, h, ref } from 'vue';
 
-import { useVbenDrawer } from '@vben/common-ui';
+import { useVbenModal } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 import { getPopupContainer } from '@vben/utils';
 
@@ -429,11 +429,11 @@ const [Form, formApi] = useVbenForm({
   wrapperClass: 'grid-cols-2 gap-x-4',
 });
 
-const [Drawer, drawerApi] = useVbenDrawer({
+const [Modal, modalApi] = useVbenModal({
   onConfirm: onSubmit,
   onOpenChange(isOpen) {
     if (isOpen) {
-      const data = drawerApi.getData<SystemMenuApi.SystemMenu>();
+      const data = modalApi.getData<SystemMenuApi.SystemMenu>();
       if (data?.type === 'link') {
         data.linkSrc = data.meta?.link;
       } else if (data?.type === 'embedded') {
@@ -454,7 +454,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
 async function onSubmit() {
   const { valid } = await formApi.validate();
   if (valid) {
-    drawerApi.lock();
+    modalApi.lock();
     const data =
       await formApi.getValues<
         Omit<SystemMenuApi.SystemMenu, 'children' | 'id'>
@@ -469,19 +469,19 @@ async function onSubmit() {
       await (formData.value?.id
         ? updateMenu({ ...data, id: formData.value.id })
         : createMenu(data));
-      drawerApi.close();
+      modalApi.close();
       emit('success');
     } finally {
-      drawerApi.unlock();
+      modalApi.unlock();
     }
   }
 }
-const getDrawerTitle = computed(() =>
+const getModalTitle = computed(() =>
   formData.value?.id ? '编辑菜单' : '新增菜单',
 );
 </script>
 <template>
-  <Drawer class="w-full max-w-[800px]" :title="getDrawerTitle">
-    <Form class="mx-4" :layout="isHorizontal ? 'horizontal' : 'vertical'" />
-  </Drawer>
+  <Modal class="w-[800px]" :title="getModalTitle">
+    <Form :layout="isHorizontal ? 'horizontal' : 'vertical'" />
+  </Modal>
 </template>
