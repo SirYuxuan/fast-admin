@@ -1,5 +1,6 @@
 package cc.oofo.system.user.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -17,6 +18,8 @@ import cc.oofo.framework.exception.BizException;
 import cc.oofo.utils.PasswordUtil;
 import cc.oofo.system.menu.entity.SysMenu;
 import cc.oofo.system.menu.mapper.SysMenuMapper;
+import cc.oofo.system.permission.entity.SysUsersRoles;
+import cc.oofo.system.permission.mapper.SysUsersRolesMapper;
 import cc.oofo.system.user.api.SysUserApi;
 import cc.oofo.system.user.dto.AuthUserDto;
 import cc.oofo.system.user.dto.SysUserInfoDto;
@@ -38,6 +41,9 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
 
     @Resource
     private SysMenuMapper sysMenuMapper;
+
+    @Resource
+    private SysUsersRolesMapper sysUsersRolesMapper;
 
     /**
      * 获取登录用户信息
@@ -107,24 +113,53 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
         SysUser sysUser = new SysUser();
         BeanUtils.copyProperties(sysUserDto, sysUser);
         updateById(sysUser);
+        // 更新角色关联
+        if (sysUserDto.getRoles() != null) {
+            saveUserRoles(sysUserDto.getId(), sysUserDto.getRoles());
+        }
     }
 
     /**
      * 添加一个用户
-     * 
+     *
      * @param sysUserDto 用户数据传输对象
      */
     public void add(SysUserDto sysUserDto) {
         if (sysUserDto == null) {
             throw new BizException("用户信息不能为空");
         }
-        if (!org.springframework.util.StringUtils.hasText(sysUserDto.getPassword())) {
+        if (!StringUtils.hasText(sysUserDto.getPassword())) {
             throw new BizException("密码不能为空");
         }
         SysUser sysUser = new SysUser();
         BeanUtils.copyProperties(sysUserDto, sysUser);
         sysUser.setPassword(PasswordUtil.create(sysUserDto.getPassword()));
         save(sysUser);
+        // 保存角色关联
+        if (sysUserDto.getRoles() != null && !sysUserDto.getRoles().isEmpty()) {
+            saveUserRoles(sysUser.getId(), sysUserDto.getRoles());
+        }
+    }
+
+    /**
+     * 保存用户角色关联（先清后写）
+     *
+     * @param userId  用户ID
+     * @param roleIds 角色ID列表
+     */
+    private void saveUserRoles(String userId, List<String> roleIds) {
+        sysUsersRolesMapper.deleteByUserId(userId);
+        if (roleIds.isEmpty()) {
+            return;
+        }
+        List<SysUsersRoles> list = new ArrayList<>();
+        for (String roleId : roleIds) {
+            SysUsersRoles ur = new SysUsersRoles();
+            ur.setUserId(userId);
+            ur.setRoleId(roleId);
+            list.add(ur);
+        }
+        sysUsersRolesMapper.batchInsert(list);
     }
 
     /**
