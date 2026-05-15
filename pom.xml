@@ -20,7 +20,7 @@
     <modules>
         <module>fast-framework</module>
         <module>fast-system</module>
-        <module>fast-auth</module>
+        <module>fast-biz-simple</module>
         <module>fast-application</module>
     </modules>
 
@@ -115,12 +115,12 @@
             </dependency>
             <dependency>
                 <groupId>cc.oofo</groupId>
-                <artifactId>fast-auth</artifactId>
+                <artifactId>fast-system</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>cc.oofo</groupId>
-                <artifactId>fast-system</artifactId>
+                <artifactId>fast-biz-simple</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

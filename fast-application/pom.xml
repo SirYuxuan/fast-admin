@@ -13,16 +13,16 @@
       <artifactId>fast-application</artifactId>
 
       <dependencies>
-            <!-- Fast 鉴权模块 -->
-            <dependency>
-                  <groupId>cc.oofo</groupId>
-                  <artifactId>fast-auth</artifactId>
-            </dependency>
-
-            <!-- Fast 系统模块 -->
+            <!-- Fast 系统模块（含鉴权） -->
             <dependency>
                   <groupId>cc.oofo</groupId>
                   <artifactId>fast-system</artifactId>
+            </dependency>
+
+            <!-- Fast 业务模板 -->
+            <dependency>
+                  <groupId>cc.oofo</groupId>
+                  <artifactId>fast-biz-simple</artifactId>
             </dependency>
 
 

@@ -3,14 +3,16 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>cc.oofo</groupId>
         <artifactId>fast-admin</artifactId>
         <version>0.0.1-dev</version>
     </parent>
 
-    <groupId>cc.oofo</groupId>
-    <artifactId>fast-auth</artifactId>
+    <artifactId>fast-biz-simple</artifactId>
+    <packaging>jar</packaging>
+    <description>业务模板模块（复制此模块作为新业务的起点）</description>
 
     <dependencies>
         <!-- Fast 基础设施 -->
@@ -19,43 +21,15 @@
             <artifactId>fast-framework</artifactId>
         </dependency>
 
-        <!-- Fast 系统模块（加载用户权限） -->
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-system</artifactId>
-        </dependency>
-
-        <!-- Web（仅用于 Filter/Servlet API 编译期依赖） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- SaToken 鉴权 -->
-        <dependency>
-            <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-spring-boot3-starter</artifactId>
-        </dependency>
-
-        <!-- Sa-Token 整合 RedisTemplate -->
-        <dependency>
-            <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-redis-template</artifactId>
-        </dependency>
-
-        <!-- MyBatis-Plus（EntityMetaObjectHandler 编译期依赖） -->
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
 </project>
