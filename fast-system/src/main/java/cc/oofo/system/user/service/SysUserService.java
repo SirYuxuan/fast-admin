@@ -14,6 +14,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import cc.oofo.framework.core.service.BaseService;
 import cc.oofo.framework.exception.BizException;
+import cc.oofo.utils.PasswordUtil;
 import cc.oofo.system.menu.entity.SysMenu;
 import cc.oofo.system.menu.mapper.SysMenuMapper;
 import cc.oofo.system.user.api.SysUserApi;
@@ -117,8 +118,12 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
         if (sysUserDto == null) {
             throw new BizException("用户信息不能为空");
         }
+        if (!org.springframework.util.StringUtils.hasText(sysUserDto.getPassword())) {
+            throw new BizException("密码不能为空");
+        }
         SysUser sysUser = new SysUser();
         BeanUtils.copyProperties(sysUserDto, sysUser);
+        sysUser.setPassword(PasswordUtil.create(sysUserDto.getPassword()));
         save(sysUser);
     }
 

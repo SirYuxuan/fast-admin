@@ -30,6 +30,12 @@ export function useFormSchema(): VbenFormSchema[] {
       rules: 'required',
     },
     {
+      component: 'InputPassword',
+      fieldName: 'password',
+      label: '密码',
+      rules: 'required',
+    },
+    {
       component: 'Input',
       fieldName: 'nickname',
       label: '昵称',
