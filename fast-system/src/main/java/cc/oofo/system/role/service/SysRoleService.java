@@ -16,7 +16,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import cc.oofo.framework.core.service.BaseService;
 import cc.oofo.framework.exception.BizException;
 import cc.oofo.system.permission.entity.SysRolesMenus;
+import cc.oofo.system.permission.entity.SysUsersRoles;
 import cc.oofo.system.permission.mapper.SysRolesMenusMapper;
+import cc.oofo.system.permission.mapper.SysUsersRolesMapper;
 import cc.oofo.system.role.entity.SysRole;
 import cc.oofo.system.role.entity.dto.SysRoleDto;
 import cc.oofo.system.role.entity.dto.SysRoleSaveDto;
@@ -36,6 +38,9 @@ public class SysRoleService extends BaseService<SysRole> {
 
     @Autowired
     private SysRolesMenusMapper sysRolesMenusMapper;
+
+    @Autowired
+    private SysUsersRolesMapper sysUsersRolesMapper;
 
     /**
      * 获取角色列表
@@ -149,14 +154,15 @@ public class SysRoleService extends BaseService<SysRole> {
 
     /**
      * 删除角色
-     * 
+     *
      * @param id 角色ID
      */
     public void deleteRole(String id) {
         removeById(id);
-        LambdaQueryWrapper<SysRolesMenus> wrapper = Wrappers.lambdaQuery(SysRolesMenus.class)
-                .eq(SysRolesMenus::getRoleId, id);
-        sysRolesMenusMapper.delete(wrapper);
+        sysRolesMenusMapper.delete(Wrappers.lambdaQuery(SysRolesMenus.class)
+                .eq(SysRolesMenus::getRoleId, id));
+        sysUsersRolesMapper.delete(Wrappers.lambdaQuery(SysUsersRoles.class)
+                .eq(SysUsersRoles::getRoleId, id));
     }
 
     /**
@@ -206,14 +212,19 @@ public class SysRoleService extends BaseService<SysRole> {
     }
 
     /**
-     * 生成角色编码
-     * 
+     * 生成角色编码（确保唯一，重复时追加序号）
+     *
      * @param name 角色名称
      * @return 角色编码
      */
     private String generateRoleCode(String name) {
-        // 简单的编码生成规则，可以根据实际需求调整
-        return "ROLE_" + name.toUpperCase().replaceAll("\\s+", "_");
+        String base = "ROLE_" + name.toUpperCase().replaceAll("\\s+", "_");
+        String code = base;
+        int suffix = 1;
+        while (exists(Wrappers.lambdaQuery(SysRole.class).eq(SysRole::getCode, code))) {
+            code = base + "_" + suffix++;
+        }
+        return code;
     }
 
 }

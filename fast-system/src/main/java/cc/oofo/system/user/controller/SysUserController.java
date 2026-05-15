@@ -1,5 +1,6 @@
 package cc.oofo.system.user.controller;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -66,11 +67,11 @@ public class SysUserController {
 
     /**
      * 删除用户
-     * 
+     *
      * @param id 用户ID
      * @return 结果
      */
-    @PostMapping("/{id}")
+    @DeleteMapping("/{id}")
     public Rs<Void> del(@PathVariable String id) {
         userService.del(id);
         return Rs.ok();

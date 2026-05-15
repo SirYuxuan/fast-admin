@@ -41,15 +41,21 @@ public class SysDeptService extends BaseService<SysDept> {
     }
 
     /**
-     * 检查部门名称是否存在
-     * 
-     * @param id   部门ID（编辑时传入）
+     * 检查同级部门（相同 pid）下名称是否已存在
+     *
+     * @param id   部门ID（编辑时传入，排除自身）
+     * @param pid  父部门ID
      * @param name 部门名称
      * @return 是否存在
      */
-    public boolean nameExists(String id, String name) {
+    public boolean nameExists(String id, String pid, String name) {
         LambdaQueryWrapper<SysDept> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(SysDept::getName, name);
+        if (StringUtils.hasText(pid)) {
+            queryWrapper.eq(SysDept::getPid, pid);
+        } else {
+            queryWrapper.isNull(SysDept::getPid);
+        }
         if (StringUtils.hasText(id)) {
             queryWrapper.ne(SysDept::getId, id);
         }
@@ -62,8 +68,8 @@ public class SysDeptService extends BaseService<SysDept> {
      * @param deptSaveDto 部门保存DTO
      */
     public void add(SysDeptSaveDto deptSaveDto) {
-        // 验证部门名称是否重复
-        if (nameExists(null, deptSaveDto.getName())) {
+        // 验证同级部门名称是否重复
+        if (nameExists(null, deptSaveDto.getPid(), deptSaveDto.getName())) {
             throw new BizException("部门名称已存在");
         }
 
@@ -97,14 +103,13 @@ public class SysDeptService extends BaseService<SysDept> {
             throw new BizException("部门不存在");
         }
 
-        // 验证部门名称是否重复
-        if (nameExists(deptSaveDto.getId(), deptSaveDto.getName())) {
+        // 验证同级部门名称是否重复
+        if (nameExists(deptSaveDto.getId(), deptSaveDto.getPid(), deptSaveDto.getName())) {
             throw new BizException("部门名称已存在");
         }
 
         // 验证上级部门
         if (StringUtils.hasText(deptSaveDto.getPid())) {
-            // 不能将自己设为上级部门
             if (deptSaveDto.getId().equals(deptSaveDto.getPid())) {
                 throw new BizException("不能将自己设为上级部门");
             }
@@ -112,6 +117,11 @@ public class SysDeptService extends BaseService<SysDept> {
             SysDept parentDept = getById(deptSaveDto.getPid());
             if (parentDept == null) {
                 throw new BizException("上级部门不存在");
+            }
+
+            // 检测深层循环引用：新父节点不能是当前节点的子孙
+            if (isDescendant(deptSaveDto.getId(), deptSaveDto.getPid())) {
+                throw new BizException("不能将子部门设为上级部门");
             }
         }
 
@@ -232,8 +242,27 @@ public class SysDeptService extends BaseService<SysDept> {
     }
 
     /**
+     * 判断 candidateId 是否是 ancestorId 的子孙节点（沿父指针向上遍历）
+     */
+    private boolean isDescendant(String ancestorId, String candidateId) {
+        String currentId = candidateId;
+        int maxDepth = 100;
+        while (StringUtils.hasText(currentId) && maxDepth-- > 0) {
+            if (currentId.equals(ancestorId)) {
+                return true;
+            }
+            SysDept current = getById(currentId);
+            if (current == null) {
+                break;
+            }
+            currentId = current.getPid();
+        }
+        return false;
+    }
+
+    /**
      * 递归排序部门
-     * 
+     *
      * @param depts 部门列表
      */
     private void sortDepts(List<SysDeptDto> depts) {
