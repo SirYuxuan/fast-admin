@@ -50,6 +50,11 @@ const [Modal, modalApi] = useVbenModal({
         formData.value = data;
         formApi.setValues(formData.value);
       }
+      // 编辑时隐藏密码字段，新增时显示并设为必填
+      const isEdit = !!formData.value?.id;
+      formApi.updateSchema([
+        { fieldName: 'password', hide: isEdit, rules: isEdit ? undefined : 'required' },
+      ]);
     }
   },
 });
