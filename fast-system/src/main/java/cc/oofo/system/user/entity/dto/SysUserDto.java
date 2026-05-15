@@ -22,6 +22,9 @@ public class SysUserDto {
     /** 用户名 */
     private String username;
 
+    /** 密码（新增时传明文，后端加密存储；编辑时不传） */
+    private String password;
+
     /** 邮箱 */
     private String email;
 
