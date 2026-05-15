@@ -15,17 +15,10 @@
     <description>系统管理模块</description>
 
     <dependencies>
+        <!-- Fast 基础设施 -->
         <dependency>
             <groupId>cc.oofo</groupId>
-            <artifactId>fast-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-framework-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>cc.oofo</groupId>
-            <artifactId>fast-framework-data</artifactId>
+            <artifactId>fast-framework</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,4 +1,4 @@
-package cc.oofo.database.handlers;
+package cc.oofo.auth.handler;
 
 import java.sql.Timestamp;
 

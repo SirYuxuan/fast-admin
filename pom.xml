@@ -18,12 +18,10 @@
     </parent>
 
     <modules>
-        <module>fast-common</module>
         <module>fast-framework</module>
         <module>fast-system</module>
         <module>fast-auth</module>
         <module>fast-application</module>
-        <module>fast-ai</module>
     </modules>
 
 
@@ -38,17 +36,10 @@
         <mysql.connector.version>9.1.0</mysql.connector.version>
         <mybatis.plus.join.version>1.5.4</mybatis.plus.join.version>
         <commons.pool2.version>2.12.0</commons.pool2.version>
-        <dashscope.sdk.version>2.22.11</dashscope.sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- 阿里百炼AI -->
-            <dependency>
-                <groupId>com.alibaba</groupId>
-                <artifactId>dashscope-sdk-java</artifactId>
-                <version>${dashscope.sdk.version}</version>
-            </dependency>
             <!-- Sa-Token 整合 RedisTemplate -->
             <dependency>
                 <groupId>cn.dev33</groupId>
@@ -116,25 +107,10 @@
                 <version>${mybatis.plus.version}</version>
             </dependency>
 
-            <!-- Fast 通用模块 -->
+            <!-- Fast 模块 -->
             <dependency>
                 <groupId>cc.oofo</groupId>
-                <artifactId>fast-common</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>cc.oofo</groupId>
-                <artifactId>fast-framework-web</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>cc.oofo</groupId>
-                <artifactId>fast-framework-data</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>cc.oofo</groupId>
-                <artifactId>fast-framework-cache</artifactId>
+                <artifactId>fast-framework</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -142,7 +118,6 @@
                 <artifactId>fast-auth</artifactId>
                 <version>${project.version}</version>
             </dependency>
-
             <dependency>
                 <groupId>cc.oofo</groupId>
                 <artifactId>fast-system</artifactId>
