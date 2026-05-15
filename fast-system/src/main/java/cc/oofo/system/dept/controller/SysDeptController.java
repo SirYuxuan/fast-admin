@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import cc.oofo.framework.core.entity.BaseQuery;
-import cc.oofo.framework.web.response.Ps;
 import cc.oofo.framework.web.response.Rs;
 import cc.oofo.system.dept.entity.SysDept;
 import cc.oofo.system.dept.entity.dto.SysDeptDto;
@@ -36,24 +35,27 @@ public class SysDeptController {
 
     /**
      * 获取部门列表
-     * 
+     *
      * @return 部门列表结果
      */
     @GetMapping
     public Rs<List<SysDeptDto>> list(BaseQuery<SysDept> query) {
-        return Ps.ok(deptService.list(query));
+        return Rs.ok(deptService.list(query));
     }
 
     /**
-     * 检查部门名称是否存在
-     * 
+     * 检查同级部门名称是否存在
+     *
      * @param id   部门ID（可选，编辑时传入）
+     * @param pid  父部门ID（可选）
      * @param name 部门名称
      * @return 是否存在
      */
     @GetMapping(path = "/nameExists")
-    public Rs<Boolean> nameExists(@RequestParam(required = false) String id, @RequestParam String name) {
-        return Rs.ok(deptService.nameExists(id, name));
+    public Rs<Boolean> nameExists(@RequestParam(required = false) String id,
+                                  @RequestParam(required = false) String pid,
+                                  @RequestParam String name) {
+        return Rs.ok(deptService.nameExists(id, pid, name));
     }
 
     /**

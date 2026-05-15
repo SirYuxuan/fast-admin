@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -103,9 +104,10 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
 
     /**
      * 修改一个用户
-     * 
+     *
      * @param sysUserDto 用户数据传输对象
      */
+    @Transactional
     public void edit(SysUserDto sysUserDto) {
         if (sysUserDto.getId() == null) {
             throw new BizException("用户ID不能为空");
@@ -124,6 +126,7 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
      *
      * @param sysUserDto 用户数据传输对象
      */
+    @Transactional
     public void add(SysUserDto sysUserDto) {
         if (sysUserDto == null) {
             throw new BizException("用户信息不能为空");
@@ -164,11 +167,13 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
 
     /**
      * 删除一个用户
-     * 
+     *
      * @param id 用户ID
      */
+    @Transactional
     public void del(String id) {
         removeById(id);
+        sysUsersRolesMapper.deleteByUserId(id);
     }
 
     /**

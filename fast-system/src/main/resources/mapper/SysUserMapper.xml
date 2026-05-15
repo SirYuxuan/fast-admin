@@ -55,14 +55,21 @@
         </where>
     </sql>
 
-    <!-- 分页查询用户列表（带角色） -->
-    <select id="listUserWithRoles" resultMap="userWithRoles"> SELECT u.*,d.id dept_id,d.name
-        dept_name, ur.role_id FROM sys_user u LEFT JOIN sys_users_roles ur ON ur.user_id = u.id LEFT
-        JOIN sys_dept d ON u.dept_id = d.id <include refid="userWhere" /> ORDER BY u.created_at
-        DESC, u.id, ur.role_id <if test="query.pageSize != null"> LIMIT #{query.pageSize} <if
-                test="query.page != null and query.page != 1"> OFFSET #{query.pageSize} *
-        (#{query.page} - 1) </if>
-        </if>
+    <!-- 分页查询用户列表（带角色）：先子查询分页用户，再 JOIN 角色，避免多行导致 LIMIT 失效 -->
+    <select id="listUserWithRoles" resultMap="userWithRoles">
+        SELECT u2.*, d.id AS dept_id, d.name AS dept_name, ur.role_id
+        FROM (
+            SELECT u.*
+            FROM sys_user u
+            <include refid="userWhere" />
+            ORDER BY u.created_at DESC, u.id
+            <if test="query.pageSize > 0">
+                LIMIT #{query.pageSize} OFFSET #{query.offset}
+            </if>
+        ) u2
+        LEFT JOIN sys_users_roles ur ON ur.user_id = u2.id
+        LEFT JOIN sys_dept d ON u2.dept_id = d.id
+        ORDER BY u2.created_at DESC, u2.id, ur.role_id
     </select>
 
     <!-- 统计用户数量 -->

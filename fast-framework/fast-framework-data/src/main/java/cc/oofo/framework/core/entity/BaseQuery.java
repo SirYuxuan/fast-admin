@@ -41,6 +41,16 @@ public class BaseQuery<T> {
         return new Page<E>(page, pageSize);
     }
 
+    /**
+     * 获取分页偏移量（供手写 SQL 使用）
+     *
+     * @return offset = (page - 1) * pageSize
+     */
+    public long getOffset() {
+        long p = page < 1 ? 1 : page;
+        return (p - 1) * pageSize;
+    }
+
     public QueryWrapper<T> getQueryWrapper() {
         if (!queryWrapperBuilt) {
             synchronized (this) {

@@ -130,9 +130,13 @@ public class SysMenuService extends BaseService<SysMenu> {
                 throw new BizException("父菜单不存在");
             }
 
-            // 不能选择自己作为父菜单
             if (Objects.equals(menuSaveDto.getPid(), menuId)) {
                 throw new BizException("不能选择自己作为父菜单");
+            }
+
+            // 检测深层循环引用：新父节点不能是当前节点的子孙
+            if (StringUtils.hasText(menuId) && isDescendant(menuId, menuSaveDto.getPid())) {
+                throw new BizException("不能将子菜单设为父菜单");
             }
         }
     }
@@ -312,8 +316,27 @@ public class SysMenuService extends BaseService<SysMenu> {
     }
 
     /**
+     * 判断 candidateId 是否是 ancestorId 的子孙节点（沿父指针向上遍历）
+     */
+    private boolean isDescendant(String ancestorId, String candidateId) {
+        String currentId = candidateId;
+        int maxDepth = 100;
+        while (StringUtils.hasText(currentId) && maxDepth-- > 0) {
+            if (currentId.equals(ancestorId)) {
+                return true;
+            }
+            SysMenu current = getById(currentId);
+            if (current == null) {
+                break;
+            }
+            currentId = current.getPid();
+        }
+        return false;
+    }
+
+    /**
      * 递归排序菜单 从菜单的order字段进行排序，按照升序排列从小到大
-     * 
+     *
      * @param menus 菜单列表
      */
     private void sortMenus(List<SysMenuDto> menus) {
