@@ -6,10 +6,6 @@ import { Card, Col, Row, Space } from 'ant-design-vue';
 import {
   ArrowDown,
   ArrowUp,
-  DocumentText,
-  Lock,
-  People,
-  Person,
 } from '@vben/icons';
 import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
@@ -37,7 +33,7 @@ const statistics = ref([
   {
     title: '系统用户',
     value: 245,
-    icon: Person,
+    icon: '👤',
     color: '#1890ff',
     trend: 'up',
     trendValue: 8,
@@ -46,7 +42,7 @@ const statistics = ref([
   {
     title: '角色权限',
     value: 12,
-    icon: Lock,
+    icon: '🔐',
     color: '#52c41a',
     trend: 'up',
     trendValue: 2,
@@ -55,7 +51,7 @@ const statistics = ref([
   {
     title: '菜单配置',
     value: 38,
-    icon: DocumentText,
+    icon: '📋',
     color: '#faad14',
     trend: 'down',
     trendValue: 1,
@@ -64,7 +60,7 @@ const statistics = ref([
   {
     title: '用户部门',
     value: 8,
-    icon: People,
+    icon: '👥',
     color: '#722ed1',
     trend: 'up',
     trendValue: 1,
@@ -168,10 +164,10 @@ function navigateTo(path: string) {
               </div>
             </div>
             <div
-              class="flex h-16 w-16 items-center justify-center rounded-full text-2xl"
-              :style="{ backgroundColor: stat.color + '20', color: stat.color }"
+              class="flex h-16 w-16 items-center justify-center rounded-full text-3xl"
+              :style="{ backgroundColor: stat.color + '20' }"
             >
-              <stat.icon />
+              {{ stat.icon }}
             </div>
           </div>
         </Card>
