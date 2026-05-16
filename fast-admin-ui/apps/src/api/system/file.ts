@@ -82,6 +82,9 @@ export async function uploadFile(file: File, bizType?: string, bizId?: string) {
   return requestClient.post<SystemFileApi.FileRecord>(
     `${FileUrl}/upload`,
     form,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 900000, // 15分钟超时，用于大文件上传
+    },
   );
 }

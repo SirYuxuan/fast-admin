@@ -108,6 +108,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
 export const requestClient = createRequestClient(apiURL, {
   responseReturn: 'data',
+  timeout: 600000, // 600秒超时，用于支持大文件上传
 });
 
-export const baseRequestClient = new RequestClient({ baseURL: apiURL });
+export const baseRequestClient = new RequestClient({
+  baseURL: apiURL,
+  timeout: 600000, // 600秒超时
+});
