@@ -86,6 +86,28 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
         if (dto.getPhone() != null) {
             user.setPhone(dto.getPhone());
         }
+        if (dto.getAvatar() != null) {
+            user.setAvatar(dto.getAvatar());
+        }
+        updateById(user);
+    }
+
+    /**
+     * 修改当前登录用户的头像
+     *
+     * @param avatar 头像 URL
+     */
+    @Transactional
+    public void changeAvatar(String avatar) {
+        if (!StringUtils.hasText(avatar)) {
+            throw new BizException("头像地址不能为空");
+        }
+        String userId = StpUtil.getLoginIdAsString();
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new BizException("用户不存在");
+        }
+        user.setAvatar(avatar);
         updateById(user);
     }
 

@@ -52,6 +52,11 @@ public class SysUser extends BaseEntity<SysUser> {
     private String nickname;
 
     /**
+     * 头像URL
+     */
+    private String avatar;
+
+    /**
      * 状态：0正常，1冻结，2锁定
      */
     private SysUserStatus status;

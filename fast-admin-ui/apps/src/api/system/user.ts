@@ -92,8 +92,19 @@ async function changeUserPassword(data: SysUserApi.PasswordChange) {
   return requestClient.put(`${BaseUrl}/password`, data);
 }
 
+/**
+ * 修改当前登录用户的头像
+ * @param avatar 头像 URL
+ */
+async function changeUserAvatar(avatar: string) {
+  return requestClient.put(`${BaseUrl}/avatar`, null, {
+    params: { avatar },
+  });
+}
+
 export {
   add,
+  changeUserAvatar,
   changeUserPassword,
   del,
   edit,
