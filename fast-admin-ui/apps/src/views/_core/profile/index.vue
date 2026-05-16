@@ -27,6 +27,7 @@ import { uploadFile } from '#/api/system/file';
 import { changeUserAvatar, getUserProfile } from '#/api/system/user';
 import { useAuthStore } from '#/store';
 
+import AvatarCropper from './avatar-cropper.vue';
 import ProfileBase from './base-setting.vue';
 import ProfileNotification from './notification-setting.vue';
 import ProfilePassword from './password-setting.vue';
@@ -38,6 +39,8 @@ const activeTab = ref<string>('basic');
 
 const userDetail = ref<Record<string, any>>({});
 const avatarUploading = ref(false);
+const cropperOpen = ref(false);
+const cropperSrc = ref<File | null>(null);
 
 // 头像优先级：用户最新上传 → store 中的 → 默认
 const avatarUrl = computed(() => {
@@ -57,45 +60,55 @@ async function loadUserInfo() {
   }
 }
 
-// 头像上传前校验
-const beforeAvatarUpload: UploadProps['beforeUpload'] = async (file) => {
-  // 大小校验：2MB 上限
-  const maxSize = 2 * 1024 * 1024;
-  if ((file as File).size > maxSize) {
-    message.error('头像图片不能超过 2MB');
+// 选完文件 → 打开裁剪 Modal
+const beforeAvatarUpload: UploadProps['beforeUpload'] = (file) => {
+  const f = file as File;
+
+  // 大小校验：5MB 上限（裁剪前的原图）
+  const maxSize = 5 * 1024 * 1024;
+  if (f.size > maxSize) {
+    message.error('图片不能超过 5MB');
     return false;
   }
   // 类型校验
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-  if (!allowed.includes((file as File).type)) {
+  if (!allowed.includes(f.type)) {
     message.error('仅支持 JPG / PNG / WEBP / GIF 图片');
     return false;
   }
 
+  cropperSrc.value = f;
+  cropperOpen.value = true;
+  // 阻止 antdv Upload 自身的请求
+  return false;
+};
+
+// 裁剪完成 → 真正上传
+async function onCropConfirm(blob: Blob) {
   try {
     avatarUploading.value = true;
-    // 上传文件，bizType 区分用途
-    const result: any = await uploadFile(file as File, 'user_avatar');
+    // 将 Blob 包成 File 以便复用 uploadFile 接口
+    const ext = blob.type.split('/')[1] || 'png';
+    const fileName = `avatar-${Date.now()}.${ext}`;
+    const file = new File([blob], fileName, { type: blob.type });
+
+    const result: any = await uploadFile(file, 'user_avatar');
     if (!result?.url) {
       message.error('上传失败，未返回头像地址');
-      return false;
+      return;
     }
-    // 更新头像
     await changeUserAvatar(result.url);
-    // 本地立刻显示
     userDetail.value.avatar = result.url;
-    // 同步刷新 userStore
     await authStore.fetchUserInfo();
     message.success('头像更新成功');
+    cropperOpen.value = false;
+    cropperSrc.value = null;
   } catch {
     /* 错误由全局拦截器提示 */
   } finally {
     avatarUploading.value = false;
   }
-
-  // 阻止 antdv Upload 自身的请求
-  return false;
-};
+}
 
 onMounted(() => {
   loadUserInfo();
@@ -216,6 +229,14 @@ onMounted(() => {
         </Card>
       </Col>
     </Row>
+
+    <!-- 头像裁剪 Modal -->
+    <AvatarCropper
+      v-model:open="cropperOpen"
+      :src="cropperSrc"
+      :uploading="avatarUploading"
+      @confirm="onCropConfirm"
+    />
   </Page>
 </template>
 
