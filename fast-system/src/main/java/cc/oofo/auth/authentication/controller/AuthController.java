@@ -12,7 +12,6 @@ import cc.oofo.auth.authentication.dto.LoginDto;
 import cc.oofo.auth.authentication.dto.LoginRsDto;
 import cc.oofo.auth.authentication.service.AuthService;
 import cc.oofo.framework.web.response.Rs;
-import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -58,7 +57,7 @@ public class AuthController {
      */
     @PostMapping(path = "/logout")
     public Rs<Void> logout() {
-        StpUtil.logout();
+        authService.logout();
         return Rs.ok();
     }
 }
