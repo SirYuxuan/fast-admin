@@ -36,10 +36,40 @@
         <mysql.connector.version>9.1.0</mysql.connector.version>
         <mybatis.plus.join.version>1.5.4</mybatis.plus.join.version>
         <commons.pool2.version>2.12.0</commons.pool2.version>
+        <aliyun.oss.version>3.18.4</aliyun.oss.version>
+        <aws.sdk.version>2.44.1</aws.sdk.version>
+        <commons.net.version>3.13.0</commons.net.version>
+        <jsch.version>2.28.2</jsch.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- AWS SDK BOM（统一管理 awssdk 内部版本） -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- 阿里云 OSS -->
+            <dependency>
+                <groupId>com.aliyun.oss</groupId>
+                <artifactId>aliyun-sdk-oss</artifactId>
+                <version>${aliyun.oss.version}</version>
+            </dependency>
+            <!-- Apache Commons Net（FTP） -->
+            <dependency>
+                <groupId>commons-net</groupId>
+                <artifactId>commons-net</artifactId>
+                <version>${commons.net.version}</version>
+            </dependency>
+            <!-- JSch（SFTP，mwiede 维护分支） -->
+            <dependency>
+                <groupId>com.github.mwiede</groupId>
+                <artifactId>jsch</artifactId>
+                <version>${jsch.version}</version>
+            </dependency>
             <!-- Sa-Token 整合 RedisTemplate -->
             <dependency>
                 <groupId>cn.dev33</groupId>

@@ -45,10 +45,37 @@ function setupCommonGuard(router: Router) {
  * @param router
  */
 function setupAccessGuard(router: Router) {
+  // 用于跟踪页面加载的标志，当浏览器刷新时此标志重置
+  let isFirstPageLoad = true;
+
   router.beforeEach(async (to, from) => {
     const accessStore = useAccessStore();
     const userStore = useUserStore();
     const authStore = useAuthStore();
+
+    // 检查是否是浏览器刷新：如果accessToken存在且isAccessChecked已被标记，但这是第一次路由导航
+    // 则强制重新加载菜单以保证数据最新
+    if (
+      isFirstPageLoad &&
+      accessStore.accessToken &&
+      accessStore.isAccessChecked
+    ) {
+      isFirstPageLoad = false;
+      // 浏览器刷新时重新加载菜单
+      const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+      const userRoles = userInfo.roles ?? [];
+
+      const { accessibleMenus, accessibleRoutes } = await generateAccess({
+        roles: userRoles,
+        router,
+        routes: accessRoutes,
+      });
+
+      accessStore.setAccessMenus(accessibleMenus);
+      accessStore.setAccessRoutes(accessibleRoutes);
+      // 继续执行正常流程
+      return true;
+    }
 
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
