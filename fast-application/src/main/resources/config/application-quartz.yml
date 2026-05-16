@@ -1,0 +1,33 @@
+spring:
+  quartz:
+    # 任务存到数据库（重启不丢）
+    job-store-type: jdbc
+    # 启动时不自动创建表（我们已经手动建好了）
+    jdbc:
+      initialize-schema: never
+    # 应用启动时立即开始调度
+    auto-startup: true
+    # 启动延迟
+    startup-delay: 5s
+    # 关闭时等待任务完成
+    wait-for-jobs-to-complete-on-shutdown: true
+    # 覆盖已存在的任务定义
+    overwrite-existing-jobs: true
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: FastApplicationScheduler
+            instanceId: AUTO
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+            tablePrefix: QRTZ_
+            isClustered: false
+            clusterCheckinInterval: 10000
+            useProperties: false
+          threadPool:
+            class: org.quartz.simpl.SimpleThreadPool
+            threadCount: 10
+            threadPriority: 5
+            threadsInheritContextClassLoaderOfInitializingThread: true
