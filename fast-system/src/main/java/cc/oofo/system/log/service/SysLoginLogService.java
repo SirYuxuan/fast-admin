@@ -33,28 +33,45 @@ public class SysLoginLogService extends BaseService<SysLoginLog> {
     }
 
     /**
-     * 记录登录日志（异步，失败不影响登录）
+     * 记录登录日志。
+     *
+     * 必须在调用方（主线程）执行，因为依赖 HttpServletRequest 上下文。
+     * 内部把信息装好后丢给 @Async 方法异步落库。
      */
-    @Async
     public void record(String userId, String username, String type,
                        Integer status, String msg) {
-        try {
-            SysLoginLog log = new SysLoginLog();
-            log.setUserId(userId);
-            log.setUsername(username);
-            log.setType(type);
-            log.setStatus(status);
-            log.setMsg(msg);
-            log.setIp(ServletUtil.getClientIp());
+        // ★ 必须在主线程读取请求信息（ThreadLocal）
+        String ip = ServletUtil.getClientIp();
+        String ua = ServletUtil.getUserAgent();
+        String browser = ServletUtil.parseBrowser(ua);
+        String os = ServletUtil.parseOs(ua);
+        String device = ua != null && ua.toLowerCase().contains("mobile") ? "Mobile" : "PC";
 
-            String ua = ServletUtil.getUserAgent();
-            log.setBrowser(ServletUtil.parseBrowser(ua));
-            log.setOs(ServletUtil.parseOs(ua));
-            log.setDevice(ua != null && ua.toLowerCase().contains("mobile") ? "Mobile" : "PC");
-            log.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-            save(log);
+        saveAsync(userId, username, type, status, msg, ip, browser, os, device);
+    }
+
+    /**
+     * 真正的落库逻辑，异步执行。
+     */
+    @Async
+    public void saveAsync(String userId, String username, String type,
+                          Integer status, String msg,
+                          String ip, String browser, String os, String device) {
+        try {
+            SysLoginLog entity = new SysLoginLog();
+            entity.setUserId(userId);
+            entity.setUsername(username);
+            entity.setType(type);
+            entity.setStatus(status);
+            entity.setMsg(msg);
+            entity.setIp(ip);
+            entity.setBrowser(browser);
+            entity.setOs(os);
+            entity.setDevice(device);
+            entity.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+            save(entity);
         } catch (Exception e) {
-            this.log.error("record login log failed", e);
+            log.error("save login log failed", e);
         }
     }
 }
