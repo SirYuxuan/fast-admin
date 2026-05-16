@@ -23,6 +23,11 @@
             <groupId>com.github.ksuid</groupId>
             <artifactId>ksuid</artifactId>
         </dependency>
+        <!-- EasyExcel -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+        </dependency>
 
         <!-- MyBatis-Plus -->
         <dependency>

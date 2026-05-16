@@ -41,6 +41,7 @@
         <commons.net.version>3.13.0</commons.net.version>
         <jsch.version>2.28.2</jsch.version>
         <oshi.version>6.6.5</oshi.version>
+        <easyexcel.version>4.0.3</easyexcel.version>
     </properties>
 
     <dependencyManagement>
@@ -76,6 +77,12 @@
                 <groupId>com.github.oshi</groupId>
                 <artifactId>oshi-core</artifactId>
                 <version>${oshi.version}</version>
+            </dependency>
+            <!-- EasyExcel (流式读写) -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>easyexcel</artifactId>
+                <version>${easyexcel.version}</version>
             </dependency>
             <!-- Sa-Token 整合 RedisTemplate -->
             <dependency>

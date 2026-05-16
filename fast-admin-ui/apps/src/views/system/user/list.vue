@@ -6,15 +6,26 @@ import type {
   VxeTableGridOptions,
 } from '#/adapter/vxe-table';
 
-import { onMounted, ref } from 'vue';
+import { h, onMounted, ref } from 'vue';
 
 import { ColPage, Tree, useVbenModal } from '@vben/common-ui';
-import { Plus } from '@vben/icons';
+import { IconifyIcon, Plus } from '@vben/icons';
 
-import { Button, message } from 'ant-design-vue';
+import {
+  Button,
+  message,
+  Modal as AModal,
+  Upload as AUpload,
+} from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
-import { crudHelper, deleteRole } from '#/api';
+import {
+  crudHelper,
+  deleteRole,
+  downloadUserImportTemplate,
+  exportUserExcel,
+  importUserExcel,
+} from '#/api';
 
 import { crud, useColumns, useGridFormSchema } from './data';
 import Form from './modules/form.vue';
@@ -104,6 +115,75 @@ function onRefresh() {
 function onCreate() {
   formModalApi.setData({}).open();
 }
+
+// ---------- 导出 / 模板下载 / 导入 ----------
+function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function onExport() {
+  try {
+    const blob = (await exportUserExcel()) as unknown as Blob;
+    saveBlob(blob, `用户列表_${Date.now()}.xlsx`);
+  } catch {
+    /* 全局拦截器已提示 */
+  }
+}
+
+async function onDownloadTemplate() {
+  try {
+    const blob = (await downloadUserImportTemplate()) as unknown as Blob;
+    saveBlob(blob, '用户导入模板.xlsx');
+  } catch {
+    /* 全局拦截器已提示 */
+  }
+}
+
+const importing = ref(false);
+const beforeImport = async (file: File) => {
+  try {
+    importing.value = true;
+    const res = await importUserExcel(file);
+    const lines: string[] = [
+      `总行数：${res.totalRows}`,
+      `成功：${res.successCount}`,
+      `失败：${res.errorCount}`,
+      `实际新增：${res.addedCount}`,
+    ];
+    if (res.errors?.length) {
+      lines.push('', '错误详情：');
+      res.errors.slice(0, 10).forEach((e) => {
+        lines.push(`第 ${e.rowIndex} 行 [${e.column}] ${e.message}`);
+      });
+      if (res.errors.length > 10) {
+        lines.push(`...还有 ${res.errors.length - 10} 条错误`);
+      }
+    }
+    AModal[res.errorCount > 0 ? 'warning' : 'success']({
+      title: '导入完成',
+      width: 520,
+      content: () =>
+        h(
+          'pre',
+          { style: 'white-space:pre-wrap;font-size:12px;margin:0' },
+          lines.join('\n'),
+        ),
+    });
+    onRefresh();
+  } catch {
+    /* 全局拦截器已提示 */
+  } finally {
+    importing.value = false;
+  }
+  return false; // 阻止 antdv Upload 自身请求
+};
 const treeData = ref<any[]>([]);
 
 onMounted(async () => {
@@ -154,10 +234,31 @@ function onTreeSelect(item: any) {
     </template>
     <Grid table-title="用户列表">
       <template #toolbar-tools>
-        <Button type="primary" @click="onCreate">
-          <Plus class="size-5" />
-          新增用户
-        </Button>
+        <div class="flex items-center gap-2">
+          <Button @click="onDownloadTemplate">
+            <IconifyIcon icon="lucide:file-down" class="text-base" />
+            模板
+          </Button>
+          <AUpload
+            :before-upload="beforeImport"
+            :show-upload-list="false"
+            accept=".xlsx,.xls"
+            :disabled="importing"
+          >
+            <Button :loading="importing">
+              <IconifyIcon icon="lucide:upload" class="text-base" />
+              导入
+            </Button>
+          </AUpload>
+          <Button @click="onExport">
+            <IconifyIcon icon="lucide:download" class="text-base" />
+            导出
+          </Button>
+          <Button type="primary" @click="onCreate">
+            <Plus class="size-5" />
+            新增用户
+          </Button>
+        </div>
       </template>
     </Grid>
   </ColPage>

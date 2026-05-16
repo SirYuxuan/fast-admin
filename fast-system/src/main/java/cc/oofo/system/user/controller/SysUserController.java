@@ -1,5 +1,8 @@
 package cc.oofo.system.user.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -9,9 +12,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import cc.oofo.framework.excel.ExcelUtil;
+import cc.oofo.framework.excel.ImportResult;
 import cc.oofo.framework.web.response.Ps;
 import cc.oofo.framework.web.response.Rs;
+import cc.oofo.system.log.annotation.OperationLog;
+import cc.oofo.system.log.enums.BusinessType;
+import cc.oofo.system.user.entity.SysUser;
+import jakarta.servlet.http.HttpServletResponse;
 import cc.oofo.system.user.dto.SysUserInfoDto;
 import cc.oofo.system.user.dto.SysUserPasswordDto;
 import cc.oofo.system.user.dto.SysUserProfileDto;
@@ -124,6 +134,39 @@ public class SysUserController {
     public Rs<Void> changePassword(@RequestBody SysUserPasswordDto dto) {
         userService.changePassword(dto);
         return Rs.ok();
+    }
+
+    // ============================================================
+    // Excel 导入导出
+    // ============================================================
+
+    /** 导出用户列表 */
+    @GetMapping("/export")
+    @OperationLog(title = "用户管理", type = BusinessType.EXPORT)
+    public void export(HttpServletResponse response, SysUserQuery query) {
+        java.util.List<SysUser> data = userService.listForExport(query);
+        ExcelUtil.export(response, "用户列表", SysUser.class, data);
+    }
+
+    /** 下载导入模板 */
+    @GetMapping("/import/template")
+    public void importTemplate(HttpServletResponse response) {
+        ExcelUtil.exportTemplate(response, "用户导入模板", SysUser.class);
+    }
+
+    /** 导入用户 */
+    @PostMapping("/import")
+    @OperationLog(title = "用户管理", type = BusinessType.IMPORT)
+    public Rs<Map<String, Object>> importExcel(@RequestParam("file") MultipartFile file) {
+        ImportResult<SysUser> r = ExcelUtil.importData(file, SysUser.class);
+        int added = userService.batchImport(r.getSuccess());
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("totalRows", r.getTotalRows());
+        resp.put("successCount", r.getSuccessCount());
+        resp.put("errorCount", r.getErrorCount());
+        resp.put("addedCount", added);
+        resp.put("errors", r.getErrors());
+        return Rs.ok(resp);
     }
 
 }
