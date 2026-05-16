@@ -1,0 +1,12 @@
+server:
+  tomcat:
+    max-http-post-size: 2147483648          # 2GB，POST请求最大大小
+    max-http-header-size: 8388608            # 8MB，HTTP请求头最大大小
+    threads:
+      max: 500                               # 最大线程数
+      min-spare: 50                          # 最小空闲线程数
+spring:
+  servlet:
+    multipart:
+      max-file-size: 2147483648              # 2GB，单个文件最大大小
+      max-request-size: 2147483648           # 2GB，整个请求最大大小
