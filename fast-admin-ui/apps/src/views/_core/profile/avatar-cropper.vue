@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
 import { Button, Modal as AModal, Slider, Spin } from 'ant-design-vue';
 
-import 'vue-cropper/dist/index.css';
-import { VueCropper } from 'vue-cropper';
+import 'vue-advanced-cropper/dist/style.css';
+import { CircleStencil, Cropper } from 'vue-advanced-cropper';
 
 const props = defineProps<{
   open: boolean;
@@ -24,7 +24,7 @@ const emits = defineEmits<{
 const cropperRef = ref();
 const imgSrc = ref<string>('');
 const previewSrc = ref<string>('');
-const scale = ref(1);
+const zoomValue = ref(1);
 
 // 当 src 变化时读取图片
 watch(
@@ -49,28 +49,28 @@ watch(
   { immediate: true },
 );
 
-// 实时预览
-function onCropMoving() {
-  cropperRef.value?.getCropData?.((data: string) => {
-    previewSrc.value = data;
-  });
+// 裁剪框变化时更新预览
+function onChange({ canvas }: { canvas?: HTMLCanvasElement }) {
+  if (canvas) {
+    previewSrc.value = canvas.toDataURL('image/png');
+  }
 }
 
 // 旋转
-function rotateLeft() {
-  cropperRef.value?.rotateLeft?.();
+function rotate(angle: number) {
+  cropperRef.value?.rotate?.(angle);
 }
 
-function rotateRight() {
-  cropperRef.value?.rotateRight?.();
-}
-
-// 缩放
-function onScaleChange(val: number | [number, number]) {
+// 缩放：滑块变化 → 计算因子
+function onZoomChange(val: number | [number, number]) {
   const v = Array.isArray(val) ? val[0] : val;
-  const delta = v - scale.value;
-  scale.value = v;
-  cropperRef.value?.changeScale?.(delta * 10);
+  if (zoomValue.value === 0) {
+    zoomValue.value = v;
+    return;
+  }
+  const factor = v / zoomValue.value;
+  zoomValue.value = v;
+  cropperRef.value?.zoom?.(factor);
 }
 
 // 取消
@@ -78,23 +78,25 @@ function onCancel() {
   emits('update:open', false);
 }
 
-// 确认裁剪
+// 确认裁剪 → 输出 PNG Blob
 function onConfirm() {
-  cropperRef.value?.getCropBlob?.((blob: Blob) => {
-    if (!blob) return;
-    emits('confirm', blob);
-  });
+  const result = cropperRef.value?.getResult?.();
+  if (!result?.canvas) return;
+  result.canvas.toBlob(
+    (blob: Blob | null) => {
+      if (blob) emits('confirm', blob);
+    },
+    'image/png',
+    0.92,
+  );
 }
 
-// Modal 打开时重置预览
+// Modal 关闭重置
 watch(
   () => props.open,
-  async (val) => {
+  (val) => {
     if (val) {
-      scale.value = 1;
-      await nextTick();
-      // 等 cropper 渲染后触发一次预览
-      setTimeout(() => onCropMoving(), 300);
+      zoomValue.value = 1;
     }
   },
 );
@@ -104,7 +106,7 @@ watch(
   <AModal
     :open="open"
     title="裁剪头像"
-    :width="720"
+    :width="780"
     :mask-closable="false"
     :keyboard="false"
     :footer="null"
@@ -114,22 +116,20 @@ watch(
       <div class="cropper-wrap">
         <!-- 左侧裁剪区 -->
         <div class="cropper-area">
-          <VueCropper
+          <Cropper
             v-if="imgSrc"
             ref="cropperRef"
-            :img="imgSrc"
-            :auto-crop="true"
-            :fixed="true"
-            :fixed-number="[1, 1]"
-            :center-box="true"
-            :can-move-box="true"
-            :info-true="true"
-            :full="false"
-            :auto-crop-width="200"
-            :auto-crop-height="200"
-            output-type="png"
-            @real-time="onCropMoving"
-            @img-load="onCropMoving"
+            class="cropper-canvas"
+            :src="imgSrc"
+            :stencil-component="CircleStencil"
+            :stencil-props="{
+              aspectRatio: 1,
+              handlers: {},
+              movable: false,
+              resizable: false,
+            }"
+            image-restriction="stencil"
+            @change="onChange"
           />
         </div>
 
@@ -155,23 +155,23 @@ watch(
         <div class="zoom-row">
           <IconifyIcon icon="lucide:zoom-out" />
           <Slider
-            :value="scale"
-            :min="0.2"
+            :value="zoomValue"
+            :min="0.5"
             :max="3"
             :step="0.1"
             class="zoom-slider"
-            @update:value="onScaleChange"
+            @update:value="onZoomChange"
           />
           <IconifyIcon icon="lucide:zoom-in" />
         </div>
         <div class="tool-buttons">
-          <Button @click="rotateLeft">
+          <Button @click="rotate(-90)">
             <template #icon>
               <IconifyIcon icon="lucide:rotate-ccw" />
             </template>
             向左旋转
           </Button>
-          <Button @click="rotateRight">
+          <Button @click="rotate(90)">
             <template #icon>
               <IconifyIcon icon="lucide:rotate-cw" />
             </template>
@@ -199,10 +199,14 @@ watch(
 
 .cropper-area {
   flex: 1;
-  height: 360px;
-  background: #f5f5f5;
+  height: 400px;
+  background: #1a1a1a;
   border-radius: 4px;
   overflow: hidden;
+}
+
+.cropper-canvas {
+  height: 100%;
 }
 
 .preview-area {
