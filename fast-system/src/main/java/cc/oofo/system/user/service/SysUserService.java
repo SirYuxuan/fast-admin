@@ -208,7 +208,7 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
     /**
      * 导出用：根据查询条件返回 SysUser 实体列表
      */
-    public java.util.List<SysUser> listForExport(SysUserQuery query) {
+    public List<SysUser> listForExport(SysUserQuery query) {
         return baseMapper.selectList(query.getQueryWrapper());
     }
 
@@ -219,7 +219,7 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
      * @return 实际新增数量（用户名重复的会跳过）
      */
     @Transactional
-    public int batchImport(java.util.List<SysUser> users) {
+    public int batchImport(List<SysUser> users) {
         if (users == null || users.isEmpty()) return 0;
         int count = 0;
         for (SysUser u : users) {
