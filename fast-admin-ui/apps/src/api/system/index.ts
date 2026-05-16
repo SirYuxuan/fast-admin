@@ -2,6 +2,7 @@ export * from './config';
 export * from './dept';
 export * from './dict';
 export * from './file';
+export * from './job';
 export * from './log';
 export * from './menu';
 export * from './role';

@@ -11,3 +11,4 @@ spring:
       - mybatis
       - database
       - upload
+      - quartz
