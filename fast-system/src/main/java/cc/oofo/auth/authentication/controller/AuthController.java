@@ -12,6 +12,8 @@ import cc.oofo.auth.authentication.dto.LoginDto;
 import cc.oofo.auth.authentication.dto.LoginRsDto;
 import cc.oofo.auth.authentication.service.AuthService;
 import cc.oofo.framework.web.response.Rs;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -20,6 +22,7 @@ import lombok.RequiredArgsConstructor;
  * @author Sir丶雨轩
  * @since 2025/11/13
  */
+@Tag(name = "认证", description = "登录 / 登出 / 权限码")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(path = "/auth")
@@ -29,10 +32,11 @@ public class AuthController {
 
     /**
      * 登录
-     * 
+     *
      * @param loginDto 登录信息
      * @return 结果
      */
+    @Operation(summary = "用户登录", description = "返回 accessToken")
     @PostMapping(path = "/login")
     public Rs<LoginRsDto> login(@RequestBody LoginDto loginDto) {
         LoginRsDto loginResult = new LoginRsDto();
@@ -45,6 +49,7 @@ public class AuthController {
      * 
      * @return 权限编码列表
      */
+    @Operation(summary = "获取当前用户权限码")
     @GetMapping(path = "/codes")
     public Rs<List<String>> codes() {
         return Rs.ok(authService.codes());
@@ -55,6 +60,7 @@ public class AuthController {
      * 
      * @return 结果
      */
+    @Operation(summary = "退出登录")
     @PostMapping(path = "/logout")
     public Rs<Void> logout() {
         authService.logout();

@@ -1,10 +1,12 @@
 package cc.oofo.framework.web.response;
 
+import org.slf4j.MDC;
+
 import lombok.Data;
 
 /**
  * 统一响应对象
- * 
+ *
  * @author Sir丶雨轩
  * @since 2025/11/13
  */
@@ -22,6 +24,14 @@ public class Rs<T> {
      * 数据
      */
     private Object data;
+    /**
+     * 服务器响应时间戳（ms）
+     */
+    private long timestamp = System.currentTimeMillis();
+    /**
+     * 链路 ID，便于排查问题（同请求 traceId）
+     */
+    private String traceId = MDC.get("traceId");
 
     /**
      * 成功响应

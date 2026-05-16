@@ -11,6 +11,7 @@ import cc.oofo.system.user.api.SysUserApi;
 import cc.oofo.system.user.dto.AuthUserDto;
 import cc.oofo.utils.PasswordUtil;
 import cc.oofo.utils.RedisUtil;
+import cc.oofo.utils.ServletUtil;
 import cc.oofo.utils.constants.RedisKeys;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +61,17 @@ public class AuthService {
             redisUtil.setVal(RedisKeys.SYSTEM_USER_NICKNAME_PREFIX + authUser.getId(),
                     authUser.getNickname());
 
-            // 6. 记录登录成功日志
+            // 6. 把浏览器/OS/IP/登录时间存进 token-session，供"在线用户"查询
+            try {
+                String ua = ServletUtil.getUserAgent();
+                StpUtil.getTokenSession().set("browser", ServletUtil.parseBrowser(ua));
+                StpUtil.getTokenSession().set("os", ServletUtil.parseOs(ua));
+                StpUtil.getTokenSession().set("ip", ServletUtil.getClientIp());
+                StpUtil.getTokenSession().set("loginTime", System.currentTimeMillis());
+            } catch (Exception ignored) {
+            }
+
+            // 7. 记录登录成功日志
             loginLogService.record(authUser.getId(), username, "LOGIN", 1, "登录成功");
             return StpUtil.getTokenValue();
         } catch (BizException e) {
