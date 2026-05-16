@@ -3,3 +3,12 @@ mybatis-plus:
     db-config:
       logic-delete-value: true
       logic-not-delete-value: false
+  configuration:
+    # 自动驼峰转下划线
+    map-underscore-to-camel-case: true
+    # 关闭一级缓存（避免事务内查询缓存问题）
+    local-cache-scope: STATEMENT
+fast:
+  sql:
+    # 慢 SQL 阈值（毫秒），超过则输出 WARN 日志告警
+    slow-threshold-ms: 1000

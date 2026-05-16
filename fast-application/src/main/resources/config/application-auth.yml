@@ -33,3 +33,10 @@ interceptor:
       - "/**"
     exclude-patterns:
       - "/auth/login"
+      # Knife4j / Swagger 文档放行
+      - "/doc.html"
+      - "/webjars/**"
+      - "/v3/api-docs/**"
+      - "/swagger-ui/**"
+      - "/swagger-resources/**"
+      - "/favicon.ico"
