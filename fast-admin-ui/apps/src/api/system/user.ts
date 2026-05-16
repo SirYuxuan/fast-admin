@@ -102,13 +102,46 @@ async function changeUserAvatar(avatar: string) {
   });
 }
 
+/** 导出用户 Excel（返回 Blob） */
+async function exportUserExcel(params?: Record<string, any>) {
+  return requestClient.get(`${BaseUrl}/export`, {
+    params,
+    responseType: 'blob',
+  });
+}
+
+/** 下载导入模板（返回 Blob） */
+async function downloadUserImportTemplate() {
+  return requestClient.get(`${BaseUrl}/import/template`, {
+    responseType: 'blob',
+  });
+}
+
+/** 导入用户 Excel */
+async function importUserExcel(file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return requestClient.post<{
+    totalRows: number;
+    successCount: number;
+    errorCount: number;
+    addedCount: number;
+    errors: Array<{ rowIndex: number; column: string; message: string }>;
+  }>(`${BaseUrl}/import`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
 export {
   add,
   changeUserAvatar,
   changeUserPassword,
   del,
+  downloadUserImportTemplate,
   edit,
+  exportUserExcel,
   getUserProfile,
+  importUserExcel,
   list,
   updateUserProfile,
 };

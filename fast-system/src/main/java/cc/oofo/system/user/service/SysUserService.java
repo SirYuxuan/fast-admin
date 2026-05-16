@@ -206,6 +206,39 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
     }
 
     /**
+     * 导出用：根据查询条件返回 SysUser 实体列表
+     */
+    public java.util.List<SysUser> listForExport(SysUserQuery query) {
+        return baseMapper.selectList(query.getQueryWrapper());
+    }
+
+    /**
+     * 批量导入用户（用于 Excel 导入）
+     *
+     * @param users 用户列表
+     * @return 实际新增数量（用户名重复的会跳过）
+     */
+    @Transactional
+    public int batchImport(java.util.List<SysUser> users) {
+        if (users == null || users.isEmpty()) return 0;
+        int count = 0;
+        for (SysUser u : users) {
+            if (!StringUtils.hasText(u.getUsername())) continue;
+            // 用户名已存在则跳过
+            if (query().eq("username", u.getUsername()).exists()) continue;
+            // 设置默认密码（系统参数 sys.user.initPassword，没配置则用 123456）
+            if (!StringUtils.hasText(u.getPassword())) {
+                u.setPassword(PasswordUtil.create("123456"));
+            } else {
+                u.setPassword(PasswordUtil.create(u.getPassword()));
+            }
+            save(u);
+            count++;
+        }
+        return count;
+    }
+
+    /**
      * 添加一个用户
      *
      * @param sysUserDto 用户数据传输对象
