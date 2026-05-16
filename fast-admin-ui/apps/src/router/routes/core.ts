@@ -36,7 +36,18 @@ const coreRoutes: RouteRecordRaw[] = [
     name: 'Root',
     path: '/',
     redirect: preferences.app.defaultHomePath,
-    children: [],
+    children: [
+      {
+        name: 'Profile',
+        path: '/profile',
+        component: () => import('#/views/_core/profile/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '个人中心',
+          icon: 'lucide:user',
+        },
+      },
+    ],
   },
   {
     component: AuthPageLayout,

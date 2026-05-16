@@ -24,6 +24,8 @@ import cc.oofo.system.permission.mapper.SysUsersRolesMapper;
 import cc.oofo.system.user.api.SysUserApi;
 import cc.oofo.system.user.dto.AuthUserDto;
 import cc.oofo.system.user.dto.SysUserInfoDto;
+import cc.oofo.system.user.dto.SysUserPasswordDto;
+import cc.oofo.system.user.dto.SysUserProfileDto;
 import cc.oofo.system.user.entity.SysUser;
 import cc.oofo.system.user.entity.dto.SysUserDto;
 import cc.oofo.system.user.entity.query.SysUserQuery;
@@ -48,7 +50,7 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
 
     /**
      * 获取登录用户信息
-     * 
+     *
      * @return 用户信息
      */
     public SysUserInfoDto info() {
@@ -60,6 +62,66 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
         SysUserInfoDto userInfoDto = new SysUserInfoDto();
         BeanUtils.copyProperties(user, userInfoDto);
         return userInfoDto;
+    }
+
+    /**
+     * 更新当前登录用户的个人信息（仅允许修改昵称、邮箱、手机号）
+     *
+     * @param dto 个人信息 DTO
+     */
+    @Transactional
+    public void updateProfile(SysUserProfileDto dto) {
+        String userId = StpUtil.getLoginIdAsString();
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new BizException("用户不存在");
+        }
+
+        if (StringUtils.hasText(dto.getNickname())) {
+            user.setNickname(dto.getNickname());
+        }
+        if (dto.getEmail() != null) {
+            user.setEmail(dto.getEmail());
+        }
+        if (dto.getPhone() != null) {
+            user.setPhone(dto.getPhone());
+        }
+        updateById(user);
+    }
+
+    /**
+     * 修改当前登录用户的密码
+     *
+     * @param dto 密码 DTO
+     */
+    @Transactional
+    public void changePassword(SysUserPasswordDto dto) {
+        if (!StringUtils.hasText(dto.getOldPassword())) {
+            throw new BizException("旧密码不能为空");
+        }
+        if (!StringUtils.hasText(dto.getNewPassword())) {
+            throw new BizException("新密码不能为空");
+        }
+        if (dto.getNewPassword().length() < 6) {
+            throw new BizException("新密码长度不能小于 6 位");
+        }
+
+        String userId = StpUtil.getLoginIdAsString();
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new BizException("用户不存在");
+        }
+
+        if (!PasswordUtil.verify(dto.getOldPassword(), user.getPassword())) {
+            throw new BizException("旧密码不正确");
+        }
+
+        if (PasswordUtil.verify(dto.getNewPassword(), user.getPassword())) {
+            throw new BizException("新密码与旧密码相同");
+        }
+
+        user.setPassword(PasswordUtil.create(dto.getNewPassword()));
+        updateById(user);
     }
 
     /**

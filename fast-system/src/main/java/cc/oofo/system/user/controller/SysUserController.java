@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import cc.oofo.framework.web.response.Ps;
 import cc.oofo.framework.web.response.Rs;
 import cc.oofo.system.user.dto.SysUserInfoDto;
+import cc.oofo.system.user.dto.SysUserPasswordDto;
+import cc.oofo.system.user.dto.SysUserProfileDto;
 import cc.oofo.system.user.entity.dto.SysUserDto;
 import cc.oofo.system.user.entity.query.SysUserQuery;
 import cc.oofo.system.user.service.SysUserService;
@@ -79,12 +81,36 @@ public class SysUserController {
 
     /**
      * 获取用户信息
-     * 
+     *
      * @return 结果
      */
     @GetMapping(path = "/info")
     public Rs<SysUserInfoDto> info() {
         return Rs.ok(userService.info());
+    }
+
+    /**
+     * 更新当前登录用户的个人信息
+     *
+     * @param dto 个人信息
+     * @return 结果
+     */
+    @PutMapping(path = "/profile")
+    public Rs<Void> updateProfile(@RequestBody SysUserProfileDto dto) {
+        userService.updateProfile(dto);
+        return Rs.ok();
+    }
+
+    /**
+     * 修改当前登录用户的密码
+     *
+     * @param dto 密码 DTO
+     * @return 结果
+     */
+    @PutMapping(path = "/password")
+    public Rs<Void> changePassword(@RequestBody SysUserPasswordDto dto) {
+        userService.changePassword(dto);
+        return Rs.ok();
     }
 
 }
