@@ -1,22 +1,16 @@
 <script lang="ts" setup>
-import type {
-  WorkbenchProjectItem,
-  WorkbenchQuickNavItem,
-  WorkbenchTodoItem,
-  WorkbenchTrendItem,
-} from '@vben/common-ui';
-
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { Card, Col, Row, Space, Statistic } from 'ant-design-vue';
 import {
-  AnalysisChartCard,
-  WorkbenchHeader,
-  WorkbenchProject,
-  WorkbenchQuickNav,
-  WorkbenchTodo,
-  WorkbenchTrends,
-} from '@vben/common-ui';
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  FileTextOutlined,
+  LockOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons-vue';
 import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
@@ -24,243 +18,244 @@ import { openWindow } from '@vben/utils';
 import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
 
 const userStore = useUserStore();
-
-// 这是一个示例数据，实际项目中需要根据实际情况进行调整
-// url 也可以是内部路由，在 navTo 方法中识别处理，进行内部跳转
-// 例如：url: /dashboard/workspace
-const projectItems: WorkbenchProjectItem[] = [
-  {
-    color: '',
-    content: '不要等待机会，而要创造机会。',
-    date: '2021-04-01',
-    group: '开源组',
-    icon: 'carbon:logo-github',
-    title: 'Github',
-    url: 'https://github.com',
-  },
-  {
-    color: '#3fb27f',
-    content: '现在的你决定将来的你。',
-    date: '2021-04-01',
-    group: '算法组',
-    icon: 'ion:logo-vue',
-    title: 'Vue',
-    url: 'https://vuejs.org',
-  },
-  {
-    color: '#e18525',
-    content: '没有什么才能比努力更重要。',
-    date: '2021-04-01',
-    group: '上班摸鱼',
-    icon: 'ion:logo-html5',
-    title: 'Html5',
-    url: 'https://developer.mozilla.org/zh-CN/docs/Web/HTML',
-  },
-  {
-    color: '#bf0c2c',
-    content: '热情和欲望可以突破一切难关。',
-    date: '2021-04-01',
-    group: 'UI',
-    icon: 'ion:logo-angular',
-    title: 'Angular',
-    url: 'https://angular.io',
-  },
-  {
-    color: '#00d8ff',
-    content: '健康的身体是实现目标的基石。',
-    date: '2021-04-01',
-    group: '技术牛',
-    icon: 'bx:bxl-react',
-    title: 'React',
-    url: 'https://reactjs.org',
-  },
-  {
-    color: '#EBD94E',
-    content: '路是走出来的，而不是空想出来的。',
-    date: '2021-04-01',
-    group: '架构组',
-    icon: 'ion:logo-javascript',
-    title: 'Js',
-    url: 'https://developer.mozilla.org/zh-CN/docs/Web/JavaScript',
-  },
-];
-
-// 同样，这里的 url 也可以使用以 http 开头的外部链接
-const quickNavItems: WorkbenchQuickNavItem[] = [
-  {
-    color: '#1fdaca',
-    icon: 'ion:home-outline',
-    title: '首页',
-    url: '/',
-  },
-  {
-    color: '#bf0c2c',
-    icon: 'ion:grid-outline',
-    title: '仪表盘',
-    url: '/dashboard',
-  },
-  {
-    color: '#e18525',
-    icon: 'ion:layers-outline',
-    title: '组件',
-    url: '/demos/features/icons',
-  },
-  {
-    color: '#3fb27f',
-    icon: 'ion:settings-outline',
-    title: '系统管理',
-    url: '/demos/features/login-expired', // 这里的 URL 是示例，实际项目中需要根据实际情况进行调整
-  },
-  {
-    color: '#4daf1bc9',
-    icon: 'ion:key-outline',
-    title: '权限管理',
-    url: '/demos/access/page-control',
-  },
-  {
-    color: '#00d8ff',
-    icon: 'ion:bar-chart-outline',
-    title: '图表',
-    url: '/analytics',
-  },
-];
-
-const todoItems = ref<WorkbenchTodoItem[]>([
-  {
-    completed: false,
-    content: `审查最近提交到Git仓库的前端代码，确保代码质量和规范。`,
-    date: '2024-07-30 11:00:00',
-    title: '审查前端代码提交',
-  },
-  {
-    completed: true,
-    content: `检查并优化系统性能，降低CPU使用率。`,
-    date: '2024-07-30 11:00:00',
-    title: '系统性能优化',
-  },
-  {
-    completed: false,
-    content: `进行系统安全检查，确保没有安全漏洞或未授权的访问。 `,
-    date: '2024-07-30 11:00:00',
-    title: '安全检查',
-  },
-  {
-    completed: false,
-    content: `更新项目中的所有npm依赖包，确保使用最新版本。`,
-    date: '2024-07-30 11:00:00',
-    title: '更新项目依赖',
-  },
-  {
-    completed: false,
-    content: `修复用户报告的页面UI显示问题，确保在不同浏览器中显示一致。 `,
-    date: '2024-07-30 11:00:00',
-    title: '修复UI显示问题',
-  },
-]);
-const trendItems: WorkbenchTrendItem[] = [
-  {
-    avatar: 'svg:avatar-1',
-    content: `在 <a>开源组</a> 创建了项目 <a>Vue</a>`,
-    date: '刚刚',
-    title: '威廉',
-  },
-  {
-    avatar: 'svg:avatar-2',
-    content: `关注了 <a>威廉</a> `,
-    date: '1个小时前',
-    title: '艾文',
-  },
-  {
-    avatar: 'svg:avatar-3',
-    content: `发布了 <a>个人动态</a> `,
-    date: '1天前',
-    title: '克里斯',
-  },
-  {
-    avatar: 'svg:avatar-4',
-    content: `发表文章 <a>如何编写一个Vite插件</a> `,
-    date: '2天前',
-    title: 'Vben',
-  },
-  {
-    avatar: 'svg:avatar-1',
-    content: `回复了 <a>杰克</a> 的问题 <a>如何进行项目优化？</a>`,
-    date: '3天前',
-    title: '皮特',
-  },
-  {
-    avatar: 'svg:avatar-2',
-    content: `关闭了问题 <a>如何运行项目</a> `,
-    date: '1周前',
-    title: '杰克',
-  },
-  {
-    avatar: 'svg:avatar-3',
-    content: `发布了 <a>个人动态</a> `,
-    date: '1周前',
-    title: '威廉',
-  },
-  {
-    avatar: 'svg:avatar-4',
-    content: `推送了代码到 <a>Github</a>`,
-    date: '2021-04-01 20:00',
-    title: '威廉',
-  },
-  {
-    avatar: 'svg:avatar-4',
-    content: `发表文章 <a>如何编写使用 Admin Vben</a> `,
-    date: '2021-03-01 20:00',
-    title: 'Vben',
-  },
-];
-
 const router = useRouter();
 
-// 这是一个示例方法，实际项目中需要根据实际情况进行调整
-// This is a sample method, adjust according to the actual project requirements
-function navTo(nav: WorkbenchProjectItem | WorkbenchQuickNavItem) {
-  if (nav.url?.startsWith('http')) {
-    openWindow(nav.url);
+// 获取当前时间的问候语
+const greetingMessage = computed(() => {
+  const hour = new Date().getHours();
+  if (hour < 6) return '夜深了，注意休息';
+  if (hour < 9) return '早上好';
+  if (hour < 12) return '上午好';
+  if (hour < 14) return '中午好';
+  if (hour < 17) return '下午好';
+  if (hour < 19) return '傍晚好';
+  return '晚上好';
+});
+
+// 系统统计数据
+const statistics = ref([
+  {
+    title: '系统用户',
+    value: 245,
+    icon: UserOutlined,
+    color: '#1890ff',
+    trend: 'up',
+    trendValue: 8,
+    link: '/system/user',
+  },
+  {
+    title: '角色权限',
+    value: 12,
+    icon: LockOutlined,
+    color: '#52c41a',
+    trend: 'up',
+    trendValue: 2,
+    link: '/system/role',
+  },
+  {
+    title: '菜单配置',
+    value: 38,
+    icon: FileTextOutlined,
+    color: '#faad14',
+    trend: 'down',
+    trendValue: 1,
+    link: '/system/menu',
+  },
+  {
+    title: '用户部门',
+    value: 8,
+    icon: TeamOutlined,
+    color: '#722ed1',
+    trend: 'up',
+    trendValue: 1,
+    link: '/system/dept',
+  },
+]);
+
+// 快捷操作
+const quickActions = ref([
+  {
+    title: '用户管理',
+    description: '管理系统用户',
+    icon: 'ion:people-outline',
+    color: '#1890ff',
+    link: '/system/user',
+  },
+  {
+    title: '角色管理',
+    description: '配置用户角色',
+    icon: 'ion:shield-outline',
+    color: '#52c41a',
+    link: '/system/role',
+  },
+  {
+    title: '菜单管理',
+    description: '配置系统菜单',
+    icon: 'ion:list-outline',
+    color: '#faad14',
+    link: '/system/menu',
+  },
+  {
+    title: '部门管理',
+    description: '管理部门信息',
+    icon: 'ion:sitemap-outline',
+    color: '#722ed1',
+    link: '/system/dept',
+  },
+  {
+    title: '文件管理',
+    description: '上传下载文件',
+    icon: 'ion:document-outline',
+    color: '#13c2c2',
+    link: '/system/file',
+  },
+  {
+    title: '文件配置',
+    description: '配置存储方案',
+    icon: 'ion:settings-outline',
+    color: '#eb2f96',
+    link: '/system/file-config',
+  },
+]);
+
+// 导航到指定页面
+function navigateTo(path: string) {
+  if (path?.startsWith('http')) {
+    openWindow(path);
     return;
   }
-  if (nav.url?.startsWith('/')) {
-    router.push(nav.url).catch((error) => {
-      console.error('Navigation failed:', error);
-    });
-  } else {
-    console.warn(`Unknown URL for navigation item: ${nav.title} -> ${nav.url}`);
-  }
+  router.push(path).catch((error) => {
+    console.error('Navigation failed:', error);
+  });
 }
 </script>
 
 <template>
-  <div class="p-5">
-    <WorkbenchHeader
-      :avatar="userStore.userInfo?.avatar || preferences.app.defaultAvatar"
-    >
-      <template #title>
-        早安, {{ userStore.userInfo?.realName }}, 开始您一天的工作吧！
-      </template>
-      <template #description> 今日晴，20℃ - 32℃！ </template>
-    </WorkbenchHeader>
-
-    <div class="mt-5 flex flex-col lg:flex-row">
-      <div class="mr-4 w-full lg:w-3/5">
-        <WorkbenchProject :items="projectItems" title="项目" @click="navTo" />
-        <WorkbenchTrends :items="trendItems" class="mt-5" title="最新动态" />
-      </div>
-      <div class="w-full lg:w-2/5">
-        <WorkbenchQuickNav
-          :items="quickNavItems"
-          class="mt-5 lg:mt-0"
-          title="快捷导航"
-          @click="navTo"
-        />
-        <WorkbenchTodo :items="todoItems" class="mt-5" title="待办事项" />
-        <AnalysisChartCard class="mt-5" title="访问来源">
-          <AnalyticsVisitsSource />
-        </AnalysisChartCard>
+  <div class="workspace-container p-6">
+    <!-- 头部欢迎区域 -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 p-6 text-white shadow-lg">
+        <div>
+          <h1 class="text-3xl font-bold">{{ greetingMessage }}，{{ userStore.userInfo?.realName }}！</h1>
+          <p class="mt-2 text-lg opacity-90">
+            欢迎回到 {{ preferences.app.name }}，祝你有个美好的一天
+          </p>
+        </div>
+        <div class="text-6xl opacity-20">📊</div>
       </div>
     </div>
+
+    <!-- 统计卡片 -->
+    <Row :gutter="[16, 16]" class="mb-6">
+      <Col :xs="24" :sm="12" :lg="6" v-for="stat in statistics" :key="stat.title">
+        <Card
+          class="cursor-pointer transition-all hover:shadow-lg"
+          @click="navigateTo(stat.link)"
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-500">{{ stat.title }}</div>
+              <div class="mt-2 text-2xl font-bold">{{ stat.value }}</div>
+              <div class="mt-2 flex items-center text-sm">
+                <span v-if="stat.trend === 'up'" class="flex items-center text-green-500">
+                  <ArrowUpOutlined class="mr-1" />
+                  {{ stat.trendValue }}%
+                </span>
+                <span v-else class="flex items-center text-red-500">
+                  <ArrowDownOutlined class="mr-1" />
+                  {{ stat.trendValue }}%
+                </span>
+              </div>
+            </div>
+            <div
+              class="flex h-16 w-16 items-center justify-center rounded-full text-2xl"
+              :style="{ backgroundColor: stat.color + '20', color: stat.color }"
+            >
+              <component :is="stat.icon" />
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+
+    <!-- 快捷操作 -->
+    <div class="mb-6">
+      <h2 class="mb-4 text-xl font-bold">快捷操作</h2>
+      <Row :gutter="[16, 16]">
+        <Col :xs="24" :sm="12" :lg="8" v-for="action in quickActions" :key="action.title">
+          <Card
+            class="h-full cursor-pointer transition-all hover:shadow-lg"
+            @click="navigateTo(action.link)"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="font-semibold">{{ action.title }}</h3>
+                <p class="mt-2 text-sm text-gray-500">{{ action.description }}</p>
+              </div>
+              <div
+                class="flex h-12 w-12 items-center justify-center rounded-lg text-xl"
+                :style="{ backgroundColor: action.color + '20', color: action.color }"
+              >
+                <i :class="`${action.icon}`"></i>
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+
+    <!-- 数据展示 -->
+    <Row :gutter="[16, 16]">
+      <Col :xs="24" :lg="12">
+        <Card title="访问来源分析" class="h-full">
+          <AnalyticsVisitsSource />
+        </Card>
+      </Col>
+      <Col :xs="24" :lg="12">
+        <Card title="系统信息" class="h-full">
+          <Space direction="vertical" style="width: 100%">
+            <div class="flex justify-between border-b pb-4">
+              <span class="text-gray-600">Node 版本</span>
+              <span class="font-semibold">v18.0.0</span>
+            </div>
+            <div class="flex justify-between border-b pb-4">
+              <span class="text-gray-600">Vue 版本</span>
+              <span class="font-semibold">v3.3.4</span>
+            </div>
+            <div class="flex justify-between border-b pb-4">
+              <span class="text-gray-600">Vite 版本</span>
+              <span class="font-semibold">v4.0.0</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">构建时间</span>
+              <span class="font-semibold">{{ new Date().toLocaleDateString() }}</span>
+            </div>
+          </Space>
+        </Card>
+      </Col>
+    </Row>
   </div>
 </template>
+
+<style scoped>
+.workspace-container {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+:deep(.ant-card) {
+  border-radius: 8px;
+  border: none;
+}
+
+:deep(.ant-card-head) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom: none;
+}
+
+:deep(.ant-card-head-title) {
+  color: white !important;
+  font-weight: 600;
+}
+</style>
