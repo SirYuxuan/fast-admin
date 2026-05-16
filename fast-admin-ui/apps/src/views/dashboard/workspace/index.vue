@@ -2,15 +2,15 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { Card, Col, Row, Space, Statistic } from 'ant-design-vue';
+import { Card, Col, Row, Space } from 'ant-design-vue';
 import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  FileTextOutlined,
-  LockOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from '@ant-design/icons-vue';
+  ArrowDown,
+  ArrowUp,
+  DocumentText,
+  Lock,
+  People,
+  Person,
+} from '@vben/icons';
 import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
@@ -37,7 +37,7 @@ const statistics = ref([
   {
     title: '系统用户',
     value: 245,
-    icon: UserOutlined,
+    icon: Person,
     color: '#1890ff',
     trend: 'up',
     trendValue: 8,
@@ -46,7 +46,7 @@ const statistics = ref([
   {
     title: '角色权限',
     value: 12,
-    icon: LockOutlined,
+    icon: Lock,
     color: '#52c41a',
     trend: 'up',
     trendValue: 2,
@@ -55,7 +55,7 @@ const statistics = ref([
   {
     title: '菜单配置',
     value: 38,
-    icon: FileTextOutlined,
+    icon: DocumentText,
     color: '#faad14',
     trend: 'down',
     trendValue: 1,
@@ -64,7 +64,7 @@ const statistics = ref([
   {
     title: '用户部门',
     value: 8,
-    icon: TeamOutlined,
+    icon: People,
     color: '#722ed1',
     trend: 'up',
     trendValue: 1,
@@ -158,11 +158,11 @@ function navigateTo(path: string) {
               <div class="mt-2 text-2xl font-bold">{{ stat.value }}</div>
               <div class="mt-2 flex items-center text-sm">
                 <span v-if="stat.trend === 'up'" class="flex items-center text-green-500">
-                  <ArrowUpOutlined class="mr-1" />
+                  <ArrowUp class="mr-1" />
                   {{ stat.trendValue }}%
                 </span>
                 <span v-else class="flex items-center text-red-500">
-                  <ArrowDownOutlined class="mr-1" />
+                  <ArrowDown class="mr-1" />
                   {{ stat.trendValue }}%
                 </span>
               </div>
@@ -171,7 +171,7 @@ function navigateTo(path: string) {
               class="flex h-16 w-16 items-center justify-center rounded-full text-2xl"
               :style="{ backgroundColor: stat.color + '20', color: stat.color }"
             >
-              <component :is="stat.icon" />
+              <stat.icon />
             </div>
           </div>
         </Card>
