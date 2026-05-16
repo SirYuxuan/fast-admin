@@ -25,6 +25,12 @@ import {
 const userStore = useUserStore();
 const router = useRouter();
 
+// 显示名：优先昵称，其次 realName，最后 username
+const displayName = computed(() => {
+  const info = userStore.userInfo as any;
+  return info?.nickname || info?.realName || info?.username || '';
+});
+
 // 当前时间
 const currentTime = ref('');
 const greetingMessage = computed(() => {
@@ -154,7 +160,7 @@ function navTo(path: string) {
         />
         <div>
           <div class="text-xl font-medium">
-            {{ greetingMessage }}，{{ userStore.userInfo?.realName || 'Admin' }}
+            {{ greetingMessage }}，{{ displayName || 'Admin' }}
             <span class="text-sm text-gray-500 ml-2">今天又是元气满满的一天 🎯</span>
           </div>
           <div class="text-sm text-gray-500 mt-1">{{ currentTime }}</div>
