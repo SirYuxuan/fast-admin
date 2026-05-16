@@ -1,6 +1,7 @@
 package cc.oofo.system.user.controller;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -144,7 +145,7 @@ public class SysUserController {
     @GetMapping("/export")
     @OperationLog(title = "用户管理", type = BusinessType.EXPORT)
     public void export(HttpServletResponse response, SysUserQuery query) {
-        java.util.List<SysUser> data = userService.listForExport(query);
+        List<SysUser> data = userService.listForExport(query);
         ExcelUtil.export(response, "用户列表", SysUser.class, data);
     }
 
