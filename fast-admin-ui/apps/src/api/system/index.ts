@@ -5,5 +5,6 @@ export * from './file';
 export * from './job';
 export * from './log';
 export * from './menu';
+export * from './monitor';
 export * from './role';
 export * from './user';
