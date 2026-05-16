@@ -18,7 +18,6 @@ import {
   Input,
   message,
   Modal as AModal,
-  Spin,
   Upload as AUpload,
 } from 'ant-design-vue';
 
@@ -84,7 +83,12 @@ function onDelete(row: SystemFileApi.FileRecord) {
 const beforeUpload: UploadProps['beforeUpload'] = async (file) => {
   try {
     isUploading.value = true;
+    const hide = message.loading({
+      content: `正在上传: ${file.name}`,
+      duration: 0,
+    });
     await uploadFile(file as File, bizType.value || undefined, bizId.value || undefined);
+    hide();
     message.success('上传成功');
     refreshGrid();
   } catch {
@@ -152,14 +156,12 @@ function refreshGrid() {
             class="w-40"
           />
           <AccessControl :codes="['system:file:upload']">
-            <Spin :spinning="isUploading" size="small">
-              <AUpload :before-upload="beforeUpload" :show-upload-list="false" :disabled="isUploading">
-                <Button type="primary" :loading="isUploading">
-                  <Plus class="size-5" />
-                  {{ isUploading ? '上传中...' : '上传' }}
-                </Button>
-              </AUpload>
-            </Spin>
+            <AUpload :before-upload="beforeUpload" :show-upload-list="false" :disabled="isUploading">
+              <Button type="primary" :disabled="isUploading">
+                <Plus class="size-5" />
+                上传
+              </Button>
+            </AUpload>
           </AccessControl>
         </div>
       </template>
