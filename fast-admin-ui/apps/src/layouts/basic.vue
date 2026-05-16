@@ -95,6 +95,12 @@ const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
 });
 
+// 显示名：优先昵称，其次 realName，最后 username
+const displayName = computed(() => {
+  const info = userStore.userInfo as any;
+  return info?.nickname || info?.realName || info?.username || '';
+});
+
 async function handleLogout() {
   await authStore.logout(false);
 }
@@ -145,9 +151,8 @@ watch(
       <UserDropdown
         :avatar
         :menus
-        :text="userStore.userInfo?.realName"
-        description="ann.vben@gmail.com"
-        tag-text="Pro"
+        :text="displayName"
+        :description="userStore.userInfo?.username"
         @logout="handleLogout"
       />
     </template>
