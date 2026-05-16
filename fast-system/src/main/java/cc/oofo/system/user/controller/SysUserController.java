@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import cc.oofo.framework.web.response.Ps;
@@ -98,6 +99,18 @@ public class SysUserController {
     @PutMapping(path = "/profile")
     public Rs<Void> updateProfile(@RequestBody SysUserProfileDto dto) {
         userService.updateProfile(dto);
+        return Rs.ok();
+    }
+
+    /**
+     * 修改当前登录用户的头像
+     *
+     * @param avatar 头像 URL
+     * @return 结果
+     */
+    @PutMapping(path = "/avatar")
+    public Rs<Void> changeAvatar(@RequestParam String avatar) {
+        userService.changeAvatar(avatar);
         return Rs.ok();
     }
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import type { UploadProps } from 'ant-design-vue';
+
+import { computed, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
@@ -12,13 +14,18 @@ import {
   Col,
   Descriptions,
   DescriptionsItem,
+  message,
   Row,
+  Spin,
   Tabs,
   TabPane,
   Tag,
+  Upload as AUpload,
 } from 'ant-design-vue';
 
-import { getUserProfile } from '#/api/system/user';
+import { uploadFile } from '#/api/system/file';
+import { changeUserAvatar, getUserProfile } from '#/api/system/user';
+import { useAuthStore } from '#/store';
 
 import ProfileBase from './base-setting.vue';
 import ProfileNotification from './notification-setting.vue';
@@ -26,9 +33,20 @@ import ProfilePassword from './password-setting.vue';
 import ProfileSecurity from './security-setting.vue';
 
 const userStore = useUserStore();
+const authStore = useAuthStore();
 const activeTab = ref<string>('basic');
 
 const userDetail = ref<Record<string, any>>({});
+const avatarUploading = ref(false);
+
+// 头像优先级：用户最新上传 → store 中的 → 默认
+const avatarUrl = computed(() => {
+  return (
+    userDetail.value.avatar ||
+    userStore.userInfo?.avatar ||
+    preferences.app.defaultAvatar
+  );
+});
 
 async function loadUserInfo() {
   try {
@@ -38,6 +56,46 @@ async function loadUserInfo() {
     /* 异常由全局拦截器提示 */
   }
 }
+
+// 头像上传前校验
+const beforeAvatarUpload: UploadProps['beforeUpload'] = async (file) => {
+  // 大小校验：2MB 上限
+  const maxSize = 2 * 1024 * 1024;
+  if ((file as File).size > maxSize) {
+    message.error('头像图片不能超过 2MB');
+    return false;
+  }
+  // 类型校验
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!allowed.includes((file as File).type)) {
+    message.error('仅支持 JPG / PNG / WEBP / GIF 图片');
+    return false;
+  }
+
+  try {
+    avatarUploading.value = true;
+    // 上传文件，bizType 区分用途
+    const result: any = await uploadFile(file as File, 'user_avatar');
+    if (!result?.url) {
+      message.error('上传失败，未返回头像地址');
+      return false;
+    }
+    // 更新头像
+    await changeUserAvatar(result.url);
+    // 本地立刻显示
+    userDetail.value.avatar = result.url;
+    // 同步刷新 userStore
+    await authStore.fetchUserInfo();
+    message.success('头像更新成功');
+  } catch {
+    /* 错误由全局拦截器提示 */
+  } finally {
+    avatarUploading.value = false;
+  }
+
+  // 阻止 antdv Upload 自身的请求
+  return false;
+};
 
 onMounted(() => {
   loadUserInfo();
@@ -51,10 +109,24 @@ onMounted(() => {
       <Col :xs="24" :lg="8">
         <Card class="profile-card">
           <div class="profile-header">
-            <Avatar
-              :size="96"
-              :src="userStore.userInfo?.avatar || preferences.app.defaultAvatar"
-            />
+            <!-- 头像 + 上传 -->
+            <AUpload
+              :before-upload="beforeAvatarUpload"
+              :show-upload-list="false"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              :disabled="avatarUploading"
+            >
+              <div class="avatar-wrapper">
+                <Spin :spinning="avatarUploading">
+                  <Avatar :size="96" :src="avatarUrl" />
+                </Spin>
+                <div class="avatar-mask">
+                  <IconifyIcon icon="lucide:camera" class="text-lg" />
+                  <span class="text-xs mt-1">更换头像</span>
+                </div>
+              </div>
+            </AUpload>
+
             <div class="profile-name">
               {{ userDetail.nickname || userStore.userInfo?.realName || userDetail.username }}
             </div>
@@ -155,6 +227,35 @@ onMounted(() => {
 .profile-header {
   text-align: center;
   padding-bottom: 16px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.avatar-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.avatar-wrapper:hover .avatar-mask {
+  opacity: 1;
 }
 
 .profile-name {

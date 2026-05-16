@@ -20,4 +20,7 @@ public class SysUserProfileDto {
     /** 手机号 */
     private String phone;
 
+    /** 头像 URL */
+    private String avatar;
+
 }

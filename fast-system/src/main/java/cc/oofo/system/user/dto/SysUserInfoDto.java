@@ -13,6 +13,7 @@ public class SysUserInfoDto {
     private String email;
     private String phone;
     private String nickname;
+    private String avatar;
 
     public String getId() {
         return id;
@@ -52,5 +53,13 @@ public class SysUserInfoDto {
 
     public void setNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 }
