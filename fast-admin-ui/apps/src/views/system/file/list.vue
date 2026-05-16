@@ -18,6 +18,7 @@ import {
   Input,
   message,
   Modal as AModal,
+  Spin,
   Upload as AUpload,
 } from 'ant-design-vue';
 
@@ -32,6 +33,7 @@ import { useColumns, useGridFormSchema } from './data';
 
 const bizType = ref('');
 const bizId = ref('');
+const isUploading = ref(false);
 
 function onActionClick({
   code,
@@ -81,11 +83,14 @@ function onDelete(row: SystemFileApi.FileRecord) {
 
 const beforeUpload: UploadProps['beforeUpload'] = async (file) => {
   try {
+    isUploading.value = true;
     await uploadFile(file as File, bizType.value || undefined, bizId.value || undefined);
     message.success('上传成功');
     refreshGrid();
   } catch {
     /* 错误由全局拦截器提示 */
+  } finally {
+    isUploading.value = false;
   }
   // 阻止 antdv Upload 自身的请求
   return false;
@@ -147,12 +152,14 @@ function refreshGrid() {
             class="w-40"
           />
           <AccessControl :codes="['system:file:upload']">
-            <AUpload :before-upload="beforeUpload" :show-upload-list="false">
-              <Button type="primary">
-                <Plus class="size-5" />
-                上传
-              </Button>
-            </AUpload>
+            <Spin :spinning="isUploading" size="small">
+              <AUpload :before-upload="beforeUpload" :show-upload-list="false" :disabled="isUploading">
+                <Button type="primary" :loading="isUploading">
+                  <Plus class="size-5" />
+                  {{ isUploading ? '上传中...' : '上传' }}
+                </Button>
+              </AUpload>
+            </Spin>
           </AccessControl>
         </div>
       </template>
