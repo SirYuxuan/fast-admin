@@ -109,8 +109,8 @@ onBeforeUnmount(() => {
     <!-- 上：核心指标卡 -->
     <Row :gutter="[16, 16]" class="mb-4">
       <!-- CPU -->
-      <Col :xs="24" :sm="12" :lg="8">
-        <Card size="small" :body-style="{ padding: '20px' }">
+      <Col :xs="24" :sm="12" :lg="8" class="metric-col">
+        <Card size="small" class="metric-card" :body-style="{ padding: '20px' }">
           <div class="card-header">
             <div class="card-title">
               <IconifyIcon icon="lucide:cpu" class="text-lg mr-2" />
@@ -137,8 +137,8 @@ onBeforeUnmount(() => {
       </Col>
 
       <!-- 内存 -->
-      <Col :xs="24" :sm="12" :lg="8">
-        <Card size="small" :body-style="{ padding: '20px' }">
+      <Col :xs="24" :sm="12" :lg="8" class="metric-col">
+        <Card size="small" class="metric-card" :body-style="{ padding: '20px' }">
           <div class="card-header">
             <div class="card-title">
               <IconifyIcon icon="lucide:memory-stick" class="text-lg mr-2" />
@@ -161,8 +161,8 @@ onBeforeUnmount(() => {
       </Col>
 
       <!-- JVM -->
-      <Col :xs="24" :lg="8">
-        <Card size="small" :body-style="{ padding: '20px' }">
+      <Col :xs="24" :lg="8" class="metric-col">
+        <Card size="small" class="metric-card" :body-style="{ padding: '20px' }">
           <div class="card-header">
             <div class="card-title">
               <IconifyIcon icon="lucide:flame" class="text-lg mr-2" />
@@ -309,6 +309,21 @@ onBeforeUnmount(() => {
   margin-bottom: 8px;
 }
 
+.metric-col {
+  display: flex;
+}
+
+.metric-card {
+  width: 100%;
+  height: 100%;
+}
+
+.metric-card :deep(.ant-card-body) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .card-title {
   display: flex;
   align-items: center;
@@ -320,6 +335,8 @@ onBeforeUnmount(() => {
 .dashboard-progress {
   display: flex;
   justify-content: center;
+  flex: 1;
+  align-items: center;
 }
 
 .dashboard-progress :deep(.ant-progress-text) {
@@ -330,6 +347,7 @@ onBeforeUnmount(() => {
 .metric-rows {
   font-size: 12px;
   color: #595959;
+  min-height: 116px;
 }
 
 .metric-rows > div {
