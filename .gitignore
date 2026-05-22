@@ -224,3 +224,4 @@ vite.config.ts.*
 .history
 .cursor
 .claude/worktrees/*
+.claude/settings.local.json
