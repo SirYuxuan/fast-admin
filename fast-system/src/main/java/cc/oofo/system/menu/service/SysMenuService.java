@@ -300,9 +300,15 @@ public class SysMenuService extends BaseService<SysMenu> {
         // 构建meta对象
         SysMenuDto.MenuMeta meta = new SysMenuDto.MenuMeta();
         meta.setIcon(menu.getIcon());
+        meta.setActiveIcon(menu.getMetaActiveIcon());
         meta.setTitle(menu.getMetaTitle());
         meta.setOrder(menu.getMetaOrder());
         meta.setAffixTab(menu.getMetaAffixTab());
+        meta.setKeepAlive(menu.getMetaKeepAlive());
+        meta.setHideInMenu(menu.getMetaHideInMenu());
+        meta.setHideChildrenInMenu(menu.getMetaHideChildrenInMenu());
+        meta.setHideInBreadcrumb(menu.getMetaHideInBreadcrumb());
+        meta.setHideInTab(menu.getMetaHideInTab());
         meta.setBadge(menu.getMetaBadge());
         meta.setBadgeType(menu.getMetaBadgeType());
         meta.setBadgeVariants(menu.getMetaBadgeVariants());

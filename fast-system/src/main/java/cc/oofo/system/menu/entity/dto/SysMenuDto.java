@@ -75,6 +75,11 @@ public class SysMenuDto {
         private String icon;
 
         /**
+         * 激活图标
+         */
+        private String activeIcon;
+
+        /**
          * 菜单标题（支持国际化key）
          */
         private String title;
@@ -88,6 +93,31 @@ public class SysMenuDto {
          * 是否固定标签页
          */
         private Boolean affixTab;
+
+        /**
+         * 是否缓存页面
+         */
+        private Boolean keepAlive;
+
+        /**
+         * 是否在菜单中隐藏（路由仍注册，可通过跳转访问）
+         */
+        private Boolean hideInMenu;
+
+        /**
+         * 是否隐藏子菜单
+         */
+        private Boolean hideChildrenInMenu;
+
+        /**
+         * 是否在面包屑中隐藏
+         */
+        private Boolean hideInBreadcrumb;
+
+        /**
+         * 是否在标签页中隐藏
+         */
+        private Boolean hideInTab;
 
         /**
          * 徽标内容
