@@ -160,10 +160,11 @@ public class SysUserController {
     @OperationLog(title = "用户管理", type = BusinessType.IMPORT)
     public Rs<Map<String, Object>> importExcel(@RequestParam("file") MultipartFile file) {
         ImportResult<SysUser> r = ExcelUtil.importData(file, SysUser.class);
-        int added = userService.batchImport(r.getSuccess());
+        int added = userService.batchImport(r);
         Map<String, Object> resp = new HashMap<>();
         resp.put("totalRows", r.getTotalRows());
-        resp.put("successCount", r.getSuccessCount());
+        resp.put("successCount", added);
+        resp.put("parsedSuccessCount", r.getSuccessCount());
         resp.put("errorCount", r.getErrorCount());
         resp.put("addedCount", added);
         resp.put("errors", r.getErrors());

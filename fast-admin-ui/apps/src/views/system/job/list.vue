@@ -109,7 +109,7 @@ function gotoLog() {
       <template #toolbar-tools>
         <div class="flex items-center gap-2">
           <Button @click="gotoLog">执行日志</Button>
-          <AccessControl :codes="['system:job:add']">
+          <AccessControl type="code" :codes="['system:job:add']">
             <Button type="primary" @click="formModalApi.setData(null).open()">
               <Plus class="size-5" />
               新增任务

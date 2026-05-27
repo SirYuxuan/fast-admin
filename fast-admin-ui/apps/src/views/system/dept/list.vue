@@ -133,7 +133,7 @@ function refreshGrid() {
     <FormModal @success="refreshGrid" />
     <Grid table-title="部门列表">
       <template #toolbar-tools>
-        <AccessControl :codes="['system:dept:add']">
+        <AccessControl type="code" :codes="['system:dept:add']">
           <Button type="primary" @click="onCreate">
             <Plus class="size-5" />
             新增部门

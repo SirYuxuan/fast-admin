@@ -116,7 +116,7 @@ function onDelete(row: SystemMenuApi.SystemMenu) {
     <FormModal @success="onRefresh" />
     <Grid>
       <template #toolbar-tools>
-        <AccessControl :codes="['system:menu:add']">
+        <AccessControl type="code" :codes="['system:menu:add']">
           <Button type="primary" @click="onCreate">
             <Plus class="size-5" />
             新增菜单

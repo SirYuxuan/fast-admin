@@ -75,7 +75,7 @@ function refresh() {
   <Page auto-content-height>
     <Grid table-title="登录日志">
       <template #toolbar-tools>
-        <AccessControl :codes="['system:log:login:delete']">
+        <AccessControl type="code" :codes="['system:log:login:delete']">
           <Button danger @click="onClean">清空日志</Button>
         </AccessControl>
       </template>

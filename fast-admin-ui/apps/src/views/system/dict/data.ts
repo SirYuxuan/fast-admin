@@ -11,7 +11,7 @@ export function useTypeFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       fieldName: 'dictType',
-      label: '字典类型',
+      label: '字典编码',
       rules: 'required',
       help: '英文编码，如 sys_user_sex',
     },
@@ -41,7 +41,7 @@ export function useDataFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       fieldName: 'dictType',
-      label: '字典类型',
+      label: '字典编码',
       componentProps: { disabled: true },
     },
     {

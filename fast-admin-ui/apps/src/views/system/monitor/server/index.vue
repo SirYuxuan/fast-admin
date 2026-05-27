@@ -74,7 +74,7 @@ const diskColumns = [
     customRender: ({ text }: any) => `${text} GB` },
   { title: '可用', dataIndex: 'freeGB', key: 'freeGB', width: 110,
     customRender: ({ text }: any) => `${text} GB` },
-  { title: '使用率', dataIndex: 'usage', key: 'usage', width: 200,
+  { title: '使用率', dataIndex: 'usage', key: 'usage', width: 160,
     customRender: ({ text }: any) => text },
 ];
 
@@ -276,12 +276,15 @@ onBeforeUnmount(() => {
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'usage'">
-                <Progress
-                  :percent="record.usage"
-                  :stroke-color="progressColor(record.usage)"
-                  :show-info="true"
-                  size="small"
-                />
+                <div class="usage-cell">
+                  <Progress
+                    :percent="record.usage"
+                    :stroke-color="progressColor(record.usage)"
+                    :show-info="false"
+                    size="small"
+                  />
+                  <span class="usage-text">{{ record.usage }}%</span>
+                </div>
               </template>
             </template>
           </Table>
@@ -364,5 +367,23 @@ onBeforeUnmount(() => {
 .metric-rows > div > span:last-child {
   font-weight: 500;
   color: #262626;
+}
+
+.usage-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 150px;
+}
+
+.usage-cell :deep(.ant-progress) {
+  flex: 1;
+  min-width: 0;
+}
+
+.usage-text {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #595959;
 }
 </style>

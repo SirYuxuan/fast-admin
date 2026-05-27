@@ -30,5 +30,6 @@ export const overridesPreferences = defineOverridesPreferences({
     refresh: false,
     sidebarToggle: false,
     themeToggle: false,
+    timezone: false,
   },
 });

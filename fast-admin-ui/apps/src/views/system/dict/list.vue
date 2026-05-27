@@ -144,7 +144,7 @@ onMounted(loadTypes);
       <!-- 左：字典类型 -->
       <Card title="字典类型" :body-style="{ padding: 0 }" class="type-card">
         <template #extra>
-          <AccessControl :codes="['system:dict:type:add']">
+          <AccessControl type="code" :codes="['system:dict:type:add']">
             <Button type="primary" size="small" @click="onAddType">
               <Plus class="size-4" />
               新增
@@ -177,12 +177,12 @@ onMounted(loadTypes);
               <div class="type-code">{{ t.dictType }}</div>
             </div>
             <div class="type-actions">
-              <AccessControl :codes="['system:dict:type:edit']">
+              <AccessControl type="code" :codes="['system:dict:type:edit']">
                 <span class="icon-btn" @click="onEditType(t, $event)">
                   <IconifyIcon icon="lucide:pencil" />
                 </span>
               </AccessControl>
-              <AccessControl :codes="['system:dict:type:delete']">
+              <AccessControl type="code" :codes="['system:dict:type:delete']">
                 <span class="icon-btn danger" @click="onDelType(t, $event)">
                   <IconifyIcon icon="lucide:trash-2" />
                 </span>
@@ -198,7 +198,7 @@ onMounted(loadTypes);
         class="data-card"
       >
         <template #extra>
-          <AccessControl :codes="['system:dict:data:add']">
+          <AccessControl type="code" :codes="['system:dict:data:add']">
             <Button type="primary" size="small" :disabled="!selectedType" @click="onAddData">
               <Plus class="size-4" />
               新增数据
@@ -217,10 +217,10 @@ onMounted(loadTypes);
                   <Tag v-if="item.status === 0" color="red">禁用</Tag>
                 </div>
                 <div class="data-actions">
-                  <AccessControl :codes="['system:dict:data:edit']">
+                  <AccessControl type="code" :codes="['system:dict:data:edit']">
                     <Button type="link" size="small" @click="onEditData(item)">编辑</Button>
                   </AccessControl>
-                  <AccessControl :codes="['system:dict:data:delete']">
+                  <AccessControl type="code" :codes="['system:dict:data:delete']">
                     <Popconfirm
                       title="确认删除该项？"
                       @confirm="onDelData(item)"

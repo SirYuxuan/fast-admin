@@ -122,7 +122,7 @@ function refreshGrid() {
     <FormModal @success="refreshGrid" />
     <Grid table-title="文件存储配置">
       <template #toolbar-tools>
-        <AccessControl :codes="['system:file:config:add']">
+        <AccessControl type="code" :codes="['system:file:config:add']">
           <Button type="primary" @click="onCreate">
             <Plus class="size-5" />
             新增配置

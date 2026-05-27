@@ -155,7 +155,7 @@ function refreshGrid() {
             allow-clear
             class="w-40"
           />
-          <AccessControl :codes="['system:file:upload']">
+          <AccessControl type="code" :codes="['system:file:upload']">
             <AUpload :before-upload="beforeUpload" :show-upload-list="false" :disabled="isUploading">
               <Button type="primary" :disabled="isUploading">
                 <Plus class="size-5" />

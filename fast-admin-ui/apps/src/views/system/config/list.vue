@@ -74,7 +74,7 @@ function onSuccess() {
   <Page auto-content-height>
     <Grid table-title="系统参数">
       <template #toolbar-tools>
-        <AccessControl :codes="['system:config:add']">
+        <AccessControl type="code" :codes="['system:config:add']">
           <Button type="primary" @click="formModalApi.setData(null).open()">
             <Plus class="size-5" />
             新增参数

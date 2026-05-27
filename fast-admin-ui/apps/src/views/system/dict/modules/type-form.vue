@@ -13,7 +13,7 @@ import { useTypeFormSchema } from '../data';
 const emit = defineEmits(['success']);
 const formData = ref<SysDictApi.DictType>();
 const getTitle = computed(() =>
-  formData.value?.id ? '编辑字典类型' : '新增字典类型',
+  formData.value?.id ? '编辑字典编码' : '新增字典编码',
 );
 
 const [Form, formApi] = useVbenForm({

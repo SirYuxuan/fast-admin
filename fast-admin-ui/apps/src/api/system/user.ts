@@ -104,15 +104,17 @@ async function changeUserAvatar(avatar: string) {
 
 /** 导出用户 Excel（返回 Blob） */
 async function exportUserExcel(params?: Record<string, any>) {
-  return requestClient.get(`${BaseUrl}/export`, {
+  return requestClient.get<Blob>(`${BaseUrl}/export`, {
     params,
+    responseReturn: 'body',
     responseType: 'blob',
   });
 }
 
 /** 下载导入模板（返回 Blob） */
 async function downloadUserImportTemplate() {
-  return requestClient.get(`${BaseUrl}/import/template`, {
+  return requestClient.get<Blob>(`${BaseUrl}/import/template`, {
+    responseReturn: 'body',
     responseType: 'blob',
   });
 }
@@ -124,6 +126,7 @@ async function importUserExcel(file: File) {
   return requestClient.post<{
     totalRows: number;
     successCount: number;
+    parsedSuccessCount?: number;
     errorCount: number;
     addedCount: number;
     errors: Array<{ rowIndex: number; column: string; message: string }>;

@@ -1,7 +1,9 @@
 package cc.oofo.system.user.service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -16,6 +18,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import cc.oofo.framework.core.service.BaseService;
 import cc.oofo.framework.exception.BizException;
+import cc.oofo.framework.excel.ImportResult;
 import cc.oofo.utils.PasswordUtil;
 import cc.oofo.system.menu.entity.SysMenu;
 import cc.oofo.system.menu.mapper.SysMenuMapper;
@@ -215,17 +218,32 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
     /**
      * 批量导入用户（用于 Excel 导入）
      *
-     * @param users 用户列表
-     * @return 实际新增数量（用户名重复的会跳过）
+     * @param result Excel 解析结果
+     * @return 实际新增数量
      */
     @Transactional
-    public int batchImport(List<SysUser> users) {
+    public int batchImport(ImportResult<SysUser> result) {
+        List<SysUser> users = result == null ? null : result.getSuccess();
         if (users == null || users.isEmpty()) return 0;
         int count = 0;
-        for (SysUser u : users) {
-            if (!StringUtils.hasText(u.getUsername())) continue;
-            // 用户名已存在则跳过
-            if (query().eq("username", u.getUsername()).exists()) continue;
+        Set<String> usernames = new HashSet<>();
+        List<Integer> rowIndexes = result.getSuccessRowIndexes();
+        for (int i = 0; i < users.size(); i++) {
+            SysUser u = users.get(i);
+            int rowIndex = rowIndexes != null && rowIndexes.size() > i ? rowIndexes.get(i) : i + 2;
+            String username = u.getUsername();
+            if (!StringUtils.hasText(username)) {
+                result.getErrors().add(new ImportResult.ImportError(rowIndex, "用户名", "用户名不能为空"));
+                continue;
+            }
+            if (!usernames.add(username)) {
+                result.getErrors().add(new ImportResult.ImportError(rowIndex, "用户名", "Excel 中用户名重复"));
+                continue;
+            }
+            if (query().eq("username", username).exists()) {
+                result.getErrors().add(new ImportResult.ImportError(rowIndex, "用户名", "用户名已存在"));
+                continue;
+            }
             // 设置默认密码（系统参数 sys.user.initPassword，没配置则用 123456）
             if (!StringUtils.hasText(u.getPassword())) {
                 u.setPassword(PasswordUtil.create("123456"));

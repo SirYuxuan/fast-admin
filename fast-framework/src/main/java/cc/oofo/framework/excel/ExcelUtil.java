@@ -180,7 +180,10 @@ public class ExcelUtil {
                                 rowOk = false;
                             }
                         }
-                        if (rowOk) result.getSuccess().add(obj);
+                        if (rowOk) {
+                            result.getSuccess().add(obj);
+                            result.getSuccessRowIndexes().add(rowIndex);
+                        }
                     } catch (Exception ex) {
                         result.getErrors().add(new ImportResult.ImportError(
                                 rowIndex, "", "解析异常：" + ex.getMessage()));

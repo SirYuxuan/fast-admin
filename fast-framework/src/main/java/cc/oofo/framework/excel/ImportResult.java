@@ -19,6 +19,9 @@ public class ImportResult<T> {
     /** 解析成功的数据行 */
     private List<T> success = new ArrayList<>();
 
+    /** 解析成功的数据行在 Excel 中的行号 */
+    private List<Integer> successRowIndexes = new ArrayList<>();
+
     /** 解析失败的行（行号 + 错误信息） */
     private List<ImportError> errors = new ArrayList<>();
 
