@@ -1,6 +1,6 @@
 {
   "name": "fast-admin",
-  "version": "5.5.9",
+  "version": "5.7.0",
   "homepage": "https://fast-admin.pro",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -46,10 +46,10 @@
     "dayjs": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",
-    "vue-advanced-cropper": "^2.8.9",
+    "vue-advanced-cropper": "catalog:",
     "vue-router": "catalog:"
   },
   "devDependencies": {
-    "baseline-browser-mapping": "^2.10.0"
+    "baseline-browser-mapping": "catalog:"
   }
 }

@@ -6,7 +6,7 @@ import type { ClassType, Recordable } from '@vben-core/typings';
 
 import type { TreeProps } from './types';
 
-import { onMounted, ref, watchEffect } from 'vue';
+import { computed, onMounted, ref, watchEffect } from 'vue';
 
 import { ChevronRight, IconifyIcon } from '@vben-core/icons';
 import { cn, get } from '@vben-core/shared/utils';
@@ -65,16 +65,26 @@ const modelValue = defineModel<Arrayable<number | string>>();
 const expanded = ref<Array<number | string>>(props.defaultExpandedKeys ?? []);
 
 const treeValue = ref();
+let lastTreeData: any = null;
 
 onMounted(() => {
   watchEffect(() => {
     flattenData.value = flatten(props.treeData, props.childrenField);
-    updateTreeValue();
-    if (
-      props.defaultExpandedLevel !== undefined &&
-      props.defaultExpandedLevel > 0
-    )
-      expandToLevel(props.defaultExpandedLevel);
+    if (flattenData.value.length > 0) {
+      updateTreeValue();
+    }
+
+    // 只在 treeData 变化时执行展开
+    const currentTreeData = JSON.stringify(props.treeData);
+    if (lastTreeData !== currentTreeData) {
+      lastTreeData = currentTreeData;
+      if (
+        props.defaultExpandedLevel !== undefined &&
+        props.defaultExpandedLevel > 0
+      ) {
+        expandToLevel(props.defaultExpandedLevel);
+      }
+    }
   });
 });
 
@@ -87,9 +97,11 @@ function getItemByValue(value: number | string) {
 function updateTreeValue() {
   const val = modelValue.value;
   if (val === undefined) {
-    treeValue.value = undefined;
-  } else {
-    if (Array.isArray(val)) {
+    treeValue.value = props.multiple ? [] : undefined;
+  } else if (Array.isArray(val)) {
+    if (val.length === 0) {
+      treeValue.value = [];
+    } else {
       const filteredValues = val.filter((v) => {
         const item = getItemByValue(v);
         return item && !get(item, props.disabledField);
@@ -99,14 +111,14 @@ function updateTreeValue() {
       if (filteredValues.length !== val.length) {
         modelValue.value = filteredValues;
       }
+    }
+  } else {
+    const item = getItemByValue(val);
+    if (item && !get(item, props.disabledField)) {
+      treeValue.value = item;
     } else {
-      const item = getItemByValue(val);
-      if (item && !get(item, props.disabledField)) {
-        treeValue.value = item;
-      } else {
-        treeValue.value = undefined;
-        modelValue.value = undefined;
-      }
+      treeValue.value = props.multiple ? [] : undefined;
+      modelValue.value = props.multiple ? [] : undefined;
     }
   }
 }
@@ -180,6 +192,32 @@ function isNodeDisabled(item: FlattenedItem<Recordable<any>>) {
   return props.disabled || get(item.value, props.disabledField);
 }
 
+// 计算全选/半选状态
+const selectAllStatus = computed<'indeterminate' | boolean>(() => {
+  if (!props.multiple) return false;
+  if (!modelValue.value || !Array.isArray(modelValue.value)) return false;
+
+  const allValues = flattenData.value
+    .filter((item) => !get(item.value, props.disabledField))
+    .map((item) => get(item.value, props.valueField));
+
+  const selectedCount = allValues.filter((v) =>
+    (modelValue.value as (number | string)[]).includes(v),
+  ).length;
+
+  if (selectedCount === 0) return false;
+  if (selectedCount === allValues.length) return true;
+  return 'indeterminate';
+});
+
+function onSelectAllChange(checked: 'indeterminate' | boolean) {
+  if (checked === true) {
+    checkAll();
+  } else {
+    unCheckAll();
+  }
+}
+
 function onToggle(item: FlattenedItem<Recordable<any>>) {
   emits('expand', item);
 }
@@ -220,7 +258,7 @@ function onSelect(item: FlattenedItem<Recordable<any>>, isSelected: boolean) {
         );
       })
       ?.parents?.filter((item) => !get(item, props.disabledField))
-      ?.reverse()
+      ?.toReversed()
       .forEach((p) => {
         const children = flattenData.value.filter((i) => {
           return (
@@ -276,7 +314,7 @@ defineExpose({
     v-slot="{ flattenItems }"
     :class="
       cn(
-        'text-blackA11 container select-none list-none rounded-lg text-sm font-medium',
+        'text-blackA11 container list-none rounded-lg text-sm font-medium select-none',
         $attrs.class as unknown as ClassType,
         bordered ? 'border' : '',
       )
@@ -304,14 +342,16 @@ defineExpose({
           :class="{ 'rotate-90': expanded?.length > 0 }"
           class="text-foreground/80 hover:text-foreground size-4 cursor-pointer transition"
         />
-        <Checkbox
-          v-if="multiple"
-          @click.stop
-          @update:model-value="
-            (checked: boolean | 'indeterminate') =>
-              checked === true ? checkAll() : unCheckAll()
-          "
-        />
+        <div class="flex items-center gap-1 item-all-checkbox">
+          <Checkbox
+            v-if="multiple"
+            :model-value="selectAllStatus"
+            :indeterminate="selectAllStatus === 'indeterminate'"
+            @click.stop
+            @update:model-value="onSelectAllChange"
+          />
+          <span v-if="selectAllLabel">{{ selectAllLabel }}</span>
+        </div>
       </div>
     </div>
     <TransitionGroup :name="transition ? 'fade' : ''">
@@ -359,8 +399,9 @@ defineExpose({
             !isNodeDisabled(item) && onToggle(item);
           }
         "
-        class="tree-node focus:ring-grass8 my-0.5 flex items-center rounded p-1 outline-none focus:ring-2"
+        class="tree-node focus:ring-grass8 my-0.5 flex items-center rounded p-1 outline-hidden"
       >
+        <!-- class="hover:ring-2" 鼠标移动上去时2px的圆环边框 -->
         <ChevronRight
           v-if="
             item.hasChildren &&
@@ -377,7 +418,7 @@ defineExpose({
           "
         />
         <div v-else class="h-4 w-4"></div>
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1 item-checkbox">
           <Checkbox
             v-if="multiple"
             :model-value="isSelected && !isNodeDisabled(item)"
@@ -395,7 +436,8 @@ defineExpose({
             "
           />
           <div
-            class="flex items-center gap-1"
+            class="flex items-center gap-1 item-checkbox"
+            :title="get(item.value, labelField)"
             @click="
               (event: MouseEvent) => {
                 if (isNodeDisabled(item)) {
@@ -443,6 +485,20 @@ defineExpose({
   height: 30px;
   background-color: #f3f3f3;
   border: 1px solid #666;
+}
+
+.item-checkbox {
+  width: 100%;
+  overflow: hidden;
+}
+
+.item-all-checkbox {
+  width: 100%;
+  overflow: hidden;
+
+  .text-label {
+    margin-left: 8px;
+  }
 }
 
 /* 1. 声明过渡效果 */

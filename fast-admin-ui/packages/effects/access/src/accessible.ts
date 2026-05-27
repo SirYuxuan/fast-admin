@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import type { Component, DefineComponent } from 'vue';
 
 import type {
@@ -26,6 +25,7 @@ async function generateAccessible(
   const { router } = options;
 
   options.routes = cloneDeep(options.routes);
+
   // 生成路由
   const accessibleRoutes = await generateRoutes(mode, options);
 
@@ -67,7 +67,6 @@ async function generateAccessible(
   }
 
   // 生成菜单
-  // @ts-ignore
   const accessibleMenus = generateMenus(accessibleRoutes, options.router);
 
   return { accessibleMenus, accessibleRoutes };
@@ -87,14 +86,11 @@ async function generateRoutes(
   let resultRoutes: RouteRecordRaw[] = routes;
   switch (mode) {
     case 'backend': {
-      // @ts-ignore
       resultRoutes = await generateRoutesByBackend(options);
       break;
     }
     case 'frontend': {
-      // @ts-ignore
       resultRoutes = await generateRoutesByFrontend(
-        // @ts-ignore
         routes,
         roles || [],
         forbiddenComponent,
@@ -103,12 +99,13 @@ async function generateRoutes(
     }
     case 'mixed': {
       const [frontend_resultRoutes, backend_resultRoutes] = await Promise.all([
-        // @ts-ignore
         generateRoutesByFrontend(routes, roles || [], forbiddenComponent),
         generateRoutesByBackend(options),
       ]);
-      // @ts-ignore
-      resultRoutes = [...frontend_resultRoutes, ...backend_resultRoutes];
+      resultRoutes = mergeRoutesByName(
+        backend_resultRoutes,
+        frontend_resultRoutes,
+      );
       break;
     }
   }
@@ -157,6 +154,65 @@ async function generateRoutes(
   });
 
   return resultRoutes;
+}
+
+/**
+ * 根据 name 合并前后端路由
+ * @param baseRoutes 后端路由
+ * @param extraRoutes 前端路由
+ */
+function mergeRoutesByName(
+  baseRoutes: RouteRecordRaw[],
+  extraRoutes: RouteRecordRaw[],
+): RouteRecordRaw[] {
+  const result: RouteRecordRaw[] = [];
+  const routeMap = new Map<string, RouteRecordRaw>();
+
+  for (const route of baseRoutes) {
+    const clone = { ...route } as RouteRecordRaw;
+    result.push(clone);
+    if (clone.name && isString(clone.name)) {
+      routeMap.set(clone.name as string, clone);
+    }
+  }
+
+  for (const route of extraRoutes) {
+    if (
+      route.name &&
+      isString(route.name) &&
+      routeMap.has(route.name as string)
+    ) {
+      const existing = routeMap.get(route.name as string);
+      if (!existing) {
+        continue;
+      }
+      const existingChildren = existing.children ?? [];
+      const routeChildren = route.children ?? [];
+
+      const merged = {
+        ...route,
+        ...existing, // keep backend as base
+        meta: {
+          ...route.meta,
+          ...existing.meta, // backend meta wins on conflicts
+        },
+      } as RouteRecordRaw;
+
+      if (existingChildren.length > 0 || routeChildren.length > 0) {
+        merged.children = mergeRoutesByName(existingChildren, routeChildren);
+      }
+
+      Object.assign(existing, merged);
+    } else {
+      const clone = { ...route } as RouteRecordRaw;
+      result.push(clone);
+      if (clone.name && isString(clone.name)) {
+        routeMap.set(clone.name as string, clone);
+      }
+    }
+  }
+
+  return result;
 }
 
 export { generateAccessible };

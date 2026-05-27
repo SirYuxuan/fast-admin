@@ -1,98 +1,145 @@
-type StorageType = 'localStorage' | 'sessionStorage';
+import type {
+  IStorageDriver,
+  StorageItem,
+  StorageManagerOptions,
+} from './types';
 
-interface StorageManagerOptions {
-  prefix?: string;
-  storageType?: StorageType;
-}
+import { LocalStorageDriver } from './local-storage-driver';
+import { MemoryStorageDriver } from './memory-storage-driver';
 
-interface StorageItem<T> {
-  expiry?: number;
-  value: T;
-}
-
+/**
+ * 存储管理器（策略模式）
+ * - prefix（命名空间隔离）在此层处理
+ * - TTL（过期机制）在此层处理
+ * - Driver 只负责纯粹的 KV 存取
+ */
 class StorageManager {
+  private driver: IStorageDriver;
   private prefix: string;
-  private storage: Storage;
 
-  constructor({
-    prefix = '',
-    storageType = 'localStorage',
-  }: StorageManagerOptions = {}) {
+  constructor({ driver, prefix = '' }: StorageManagerOptions = {}) {
+    this.driver = driver || this.createDefaultDriver();
     this.prefix = prefix;
-    this.storage =
-      storageType === 'localStorage'
-        ? window.localStorage
-        : window.sessionStorage;
-  }
-
-  clear(): void {
-    const keysToRemove: string[] = [];
-
-    for (let i = 0; i < this.storage.length; i++) {
-      const key = this.storage.key(i);
-
-      if (key && key.startsWith(this.prefix)) {
-        keysToRemove.push(key);
-      }
-    }
-
-    keysToRemove.forEach((key) => this.storage.removeItem(key));
-  }
-
-  clearExpiredItems(): void {
-    for (let i = 0; i < this.storage.length; i++) {
-      const key = this.storage.key(i);
-
-      if (key && key.startsWith(this.prefix)) {
-        const shortKey = key.replace(this.prefix, '');
-        this.getItem(shortKey);
-      }
+    if (!this.prefix && this.driver instanceof LocalStorageDriver) {
+      console.warn(
+        '[StorageManager] empty prefix combined with LocalStorageDriver — clear()/keys() will affect every localStorage entry.',
+      );
     }
   }
 
-  getItem<T>(key: string, defaultValue: null | T = null): null | T {
+  /**
+   * 清除所有带前缀的存储项
+   */
+  async clear(): Promise<void> {
+    const allKeys = await this.driver.keys();
+    const fullPrefix = this.prefix ? `${this.prefix}-` : '';
+    const prefixedKeys = allKeys.filter((key) => key.startsWith(fullPrefix));
+    await Promise.all(prefixedKeys.map((key) => this.driver.removeItem(key)));
+  }
+
+  /**
+   * 清除所有过期的存储项
+   */
+  async clearExpiredItems(): Promise<void> {
+    const allKeys = await this.driver.keys();
+    const fullPrefix = this.prefix ? `${this.prefix}-` : '';
+    const prefixedKeys = allKeys.filter((key) => key.startsWith(fullPrefix));
+
+    for (const fullKey of prefixedKeys) {
+      const raw = await this.driver.getItem<StorageItem<unknown>>(fullKey);
+      if (raw && raw.expiry && Date.now() > raw.expiry) {
+        await this.driver.removeItem(fullKey);
+      }
+    }
+  }
+
+  /**
+   * 获取存储项
+   * @param key 键
+   * @param defaultValue 当项不存在或已过期时返回的默认值
+   * @returns 值，如果项已过期则返回默认值
+   */
+  async getItem<T>(
+    key: string,
+    defaultValue: null | T = null,
+  ): Promise<null | T> {
     const fullKey = this.getFullKey(key);
-    const itemStr = this.storage.getItem(fullKey);
+    const raw = await this.driver.getItem<StorageItem<T>>(fullKey);
 
-    if (!itemStr) {
+    if (!raw) {
       return defaultValue;
     }
 
-    try {
-      const item: StorageItem<T> = JSON.parse(itemStr);
-
-      if (item.expiry && Date.now() > item.expiry) {
-        this.storage.removeItem(fullKey);
-        return defaultValue;
-      }
-
-      return item.value;
-    } catch (error) {
-      console.error(`Error parsing item with key "${fullKey}":`, error);
-      this.storage.removeItem(fullKey);
+    // TTL 检查
+    if (raw.expiry && Date.now() > raw.expiry) {
+      await this.driver.removeItem(fullKey);
       return defaultValue;
     }
+
+    return raw.value;
   }
 
-  removeItem(key: string): void {
+  /**
+   * 获取当前前缀下的所有存储键（已去除前缀部分）
+   */
+  async keys(): Promise<string[]> {
+    const allKeys = await this.driver.keys();
+    const fullPrefix = this.prefix ? `${this.prefix}-` : '';
+    if (!fullPrefix) return allKeys;
+    return allKeys
+      .filter((key) => key.startsWith(fullPrefix))
+      .map((key) => key.slice(fullPrefix.length));
+  }
+
+  /**
+   * 移除存储项
+   * @param key 键
+   */
+  async removeItem(key: string): Promise<void> {
     const fullKey = this.getFullKey(key);
-    this.storage.removeItem(fullKey);
+    await this.driver.removeItem(fullKey);
   }
 
-  setItem<T>(key: string, value: T, ttl?: number): void {
+  /**
+   * 设置存储项
+   * @param key 键
+   * @param value 值
+   * @param ttl 存活时间（毫秒）
+   */
+  async setItem(key: string, value: unknown, ttl?: number): Promise<void> {
     const fullKey = this.getFullKey(key);
     const expiry = ttl ? Date.now() + ttl : undefined;
-    const item: StorageItem<T> = { expiry, value };
-
-    try {
-      this.storage.setItem(fullKey, JSON.stringify(item));
-    } catch (error) {
-      console.error(`Error setting item with key "${fullKey}":`, error);
-    }
+    const item: StorageItem<unknown> = { expiry, value };
+    await this.driver.setItem(fullKey, item);
   }
 
+  /**
+   * 根据运行环境创建默认驱动：
+   * - 浏览器环境（window.localStorage 可用）→ LocalStorageDriver
+   * - SSR / Node 环境 → MemoryStorageDriver
+   */
+  private createDefaultDriver(): IStorageDriver {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return new LocalStorageDriver();
+      }
+    } catch (error) {
+      // localStorage access denied (e.g. Safari private mode)
+      console.warn(
+        'localStorage is not accessible, falling back to MemoryStorageDriver:',
+        error,
+      );
+    }
+    return new MemoryStorageDriver();
+  }
+
+  /**
+   * 获取完整的存储键（带前缀）
+   * @param key 原始键
+   * @returns 带前缀的完整键
+   */
   private getFullKey(key: string): string {
-    return `${this.prefix}-${key}`;
+    return this.prefix ? `${this.prefix}-${key}` : key;
   }
 }
 

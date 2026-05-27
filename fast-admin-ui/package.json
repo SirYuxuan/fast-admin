@@ -1,6 +1,6 @@
 {
   "name": "vben-admin-monorepo",
-  "version": "5.5.9",
+  "version": "5.7.0",
   "private": true,
   "keywords": [
     "monorepo",
@@ -25,30 +25,21 @@
   },
   "type": "module",
   "scripts": {
+    "bootstrap": "pnpm install",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 turbo build",
     "build:analyze": "turbo build:analyze",
     "build:antd": "pnpm run build --filter=fast-admin",
     "build:docker": "./scripts/deploy/build-local-docker-image.sh",
-    "build:docs": "pnpm run build --filter=@vben/docs",
-    "build:ele": "pnpm run build --filter=@vben/web-ele",
-    "build:naive": "pnpm run build --filter=@vben/web-naive",
-    "build:tdesign": "pnpm run build --filter=@vben/web-tdesign",
-
     "changeset": "pnpm exec changeset",
     "check": "pnpm run check:circular && pnpm run check:dep && pnpm run check:type && pnpm check:cspell",
     "check:circular": "vsh check-circular",
-    "check:cspell": "cspell lint **/*.ts **/README.md .changeset/*.md --no-progress",
+    "check:cspell": "cspell lint \"**/*.ts\" \"**/README.md\" \".changeset/*.md\" --no-progress",
     "check:dep": "vsh check-dep",
     "check:type": "turbo run typecheck",
     "clean": "node ./scripts/clean.mjs",
     "commit": "czg",
-    "dev": "turbo-run dev",
+    "dev": "pnpm -F fast-admin run dev",
     "dev:antd": "pnpm -F fast-admin run dev",
-    "dev:docs": "pnpm -F @vben/docs run dev",
-    "dev:ele": "pnpm -F @vben/web-ele run dev",
-    "dev:naive": "pnpm -F @vben/web-naive run dev",
-    "dev:tdesign": "pnpm -F @vben/web-tdesign run dev",
-
     "format": "vsh lint --format",
     "lint": "vsh lint",
     "postinstall": "pnpm -r run stub --if-present",
@@ -65,7 +56,7 @@
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
-    "@playwright/test": "catalog:",
+    "@tsdown/css": "catalog:",
     "@types/node": "catalog:",
     "@vben/commitlint-config": "workspace:*",
     "@vben/eslint-config": "workspace:*",
@@ -78,55 +69,28 @@
     "@vben/vsh": "workspace:*",
     "@vitejs/plugin-vue": "catalog:",
     "@vitejs/plugin-vue-jsx": "catalog:",
-    "@vue/test-utils": "catalog:",
-    "autoprefixer": "catalog:",
     "cross-env": "catalog:",
     "cspell": "catalog:",
+    "eslint": "catalog:",
     "happy-dom": "catalog:",
     "is-ci": "catalog:",
-    "lefthook": "catalog:",
     "playwright": "catalog:",
+    "prettier": "catalog:",
     "rimraf": "catalog:",
+    "stylelint": "catalog:",
     "tailwindcss": "catalog:",
+    "tsdown": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "unbuild": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "vue": "^3.5.24",
+    "vue": "catalog:",
     "vue-tsc": "catalog:"
   },
   "engines": {
-    "node": ">=20.10.0",
-    "pnpm": ">=9.12.0"
+    "node": "^22.18.0 || ^24.0.0",
+    "pnpm": ">=10.0.0"
   },
-  "packageManager": "pnpm@10.14.0",
-  "pnpm": {
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "eslint": "*"
-      }
-    },
-    "overrides": {
-      "@ast-grep/napi": "catalog:",
-      "@ctrl/tinycolor": "catalog:",
-      "clsx": "catalog:",
-      "esbuild": "0.25.3",
-      "pinia": "catalog:",
-      "@vue/compiler-core": "3.5.24",
-      "@vue/compiler-dom": "3.5.24",
-      "@vue/compiler-sfc": "3.5.24",
-      "@vue/compiler-ssr": "3.5.24",
-      "@vue/reactivity": "3.5.24",
-      "@vue/runtime-core": "3.5.24",
-      "@vue/runtime-dom": "3.5.24",
-      "@vue/server-renderer": "3.5.24",
-      "@vue/shared": "3.5.24",
-      "vue": "3.5.24"
-    },
-    "neverBuiltDependencies": [
-      "canvas",
-      "node-gyp"
-    ]
-  }
+  "packageManager": "pnpm@10.33.4"
 }

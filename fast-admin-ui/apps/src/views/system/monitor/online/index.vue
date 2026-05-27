@@ -3,6 +3,8 @@ import type { SysOnlineApi } from '#/api/system/online';
 
 import { onMounted, ref } from 'vue';
 
+import type { TableColumnsType } from 'ant-design-vue';
+
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
@@ -14,7 +16,6 @@ import {
   message,
   Modal as AModal,
   Table,
-  Tag,
 } from 'ant-design-vue';
 
 import { getOnlineUsers, kickoutUser } from '#/api/system/online';
@@ -59,7 +60,7 @@ function formatTimeout(s?: number) {
   return `${Math.floor(s / 86400)} 天`;
 }
 
-const columns = [
+const columns: TableColumnsType = [
   {
     title: '用户',
     key: 'user',
@@ -152,7 +153,7 @@ onMounted(load);
             </div>
           </template>
           <template v-if="column.key === 'action'">
-            <Button type="link" danger size="small" @click="onKickout(record)">
+            <Button type="link" danger size="small" @click="onKickout(record as SysOnlineApi.OnlineUser)">
               <template #icon>
                 <IconifyIcon icon="lucide:log-out" />
               </template>

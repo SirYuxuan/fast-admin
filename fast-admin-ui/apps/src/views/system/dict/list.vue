@@ -45,11 +45,12 @@ async function loadTypes() {
   typeList.value = res.items || [];
   applyTypeFilter();
   // 默认选中第一项
-  if (!selectedType.value && typeList.value.length > 0) {
-    onSelectType(typeList.value[0]);
+  const first = typeList.value[0];
+  if (!selectedType.value && first) {
+    onSelectType(first);
   } else if (selectedType.value) {
     // 选中项可能被删除
-    const found = typeList.value.find((t) => t.id === selectedType.value!.id);
+    const found = typeList.value.find((t) => t.id === selectedType.value?.id);
     if (!found) {
       selectedType.value = typeList.value[0] || null;
       if (selectedType.value) onSelectType(selectedType.value);
@@ -155,7 +156,7 @@ onMounted(loadTypes);
             v-model:value="typeSearch"
             allow-clear
             placeholder="搜索字典名/编码"
-            @update:value="applyTypeFilter"
+            @change="applyTypeFilter"
           >
             <template #prefix>
               <IconifyIcon icon="lucide:search" class="text-gray-400" />

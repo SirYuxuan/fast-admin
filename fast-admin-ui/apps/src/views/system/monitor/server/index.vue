@@ -55,7 +55,7 @@ function progressColor(percent: number) {
   return '#52c41a';
 }
 
-function toggleAutoRefresh(val: boolean) {
+function toggleAutoRefresh(val: boolean | number | string) {
   if (val) {
     refreshInterval.value = setInterval(load, 3000);
   } else if (refreshInterval.value) {
