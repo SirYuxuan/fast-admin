@@ -22,7 +22,7 @@ import {
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import {
   crudHelper,
-  deleteRole,
+  del as deleteUser,
   downloadUserImportTemplate,
   exportUserExcel,
   importUserExcel,
@@ -98,7 +98,7 @@ function onDelete(row: ModelType) {
     duration: 0,
     key: 'action_process_msg',
   });
-  deleteRole(row.id)
+  deleteUser(row.id)
     .then(() => {
       message.success({
         content: `${row.nickname} 删除成功`,
