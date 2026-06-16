@@ -12,3 +12,4 @@ spring:
       - database
       - upload
       - quartz
+      - ai

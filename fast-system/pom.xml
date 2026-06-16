@@ -28,7 +28,7 @@
         <!-- AOP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
         <!-- Quartz -->
         <dependency>
@@ -53,7 +53,7 @@
         <!-- SaToken 鉴权 -->
         <dependency>
             <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-spring-boot3-starter</artifactId>
+            <artifactId>sa-token-spring-boot4-starter</artifactId>
         </dependency>
         <!-- Sa-Token 整合 RedisTemplate -->
         <dependency>

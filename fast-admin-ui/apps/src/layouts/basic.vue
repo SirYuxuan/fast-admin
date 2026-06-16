@@ -17,6 +17,7 @@ import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
+import AiAssistant from '#/components/ai-assistant/index.vue';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
 const notifications = ref<NotificationItem[]>([
@@ -178,4 +179,5 @@ watch(
       <LockScreen :avatar @to-login="handleLogout" />
     </template>
   </BasicLayout>
+  <AiAssistant />
 </template>

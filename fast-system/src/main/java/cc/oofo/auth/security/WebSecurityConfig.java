@@ -14,6 +14,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import cc.oofo.auth.security.filter.AuditContextFilter;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 
 /**
@@ -73,7 +76,19 @@ public class WebSecurityConfig implements WebMvcConfigurer {
         // 注册 Sa-Token 拦截器，校验规则为 StpUtil.checkLogin() 登录校验。
         String[] includePatterns = interceptorProperties.getAuth().getIncludePatterns().toArray(new String[0]);
         String[] excludePatterns = interceptorProperties.getAuth().getExcludePatterns().toArray(new String[0]);
-        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
+        // SSE 等异步请求在 emitter 完成后会再次分派进入拦截器链，此时 Sa-Token 上下文已释放，
+        // 重复 checkLogin 会抛“上下文尚未初始化”。仅在初始 REQUEST 分派鉴权即可，异步/错误再分派放行。
+        SaInterceptor saInterceptor = new SaInterceptor(handle -> StpUtil.checkLogin()) {
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+                    throws Exception {
+                if (request.getDispatcherType() != DispatcherType.REQUEST) {
+                    return true;
+                }
+                return super.preHandle(request, response, handler);
+            }
+        };
+        registry.addInterceptor(saInterceptor)
                 .addPathPatterns(includePatterns)
                 .excludePathPatterns(excludePatterns);
 

@@ -14,6 +14,7 @@ import cc.oofo.utils.constants.RedisKeys;
 import cc.oofo.utils.context.AuditContext;
 import cc.oofo.utils.context.AuditContextHolder;
 import cn.dev33.satoken.stp.StpUtil;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,10 @@ public class AuditContextFilter implements HandlerInterceptor {
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
             @NonNull Object handler)
             throws IOException {
+        // 异步/错误再分派阶段 Sa-Token 上下文已释放，跳过避免读取登录态报错。
+        if (request.getDispatcherType() != DispatcherType.REQUEST) {
+            return true;
+        }
         if (StpUtil.isLogin()) {
             String userId = StpUtil.getLoginIdAsString();
             String nickname = DEFAULT_USER_NAME;
