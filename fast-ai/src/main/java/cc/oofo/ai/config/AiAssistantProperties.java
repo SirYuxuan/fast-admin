@@ -17,6 +17,9 @@ public class AiAssistantProperties {
 
     private boolean requirePermission = false;
 
+    /** 单轮对话最大工具调用轮次，防止工具调用失控。 */
+    private int maxToolIterations = 8;
+
     /**
      * v1 的基础系统提示词。后续可以迁移到 sys_config 或独立 ai_setting。
      */

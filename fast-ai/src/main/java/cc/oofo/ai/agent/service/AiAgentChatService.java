@@ -58,14 +58,24 @@ public class AiAgentChatService {
                 emitter.complete();
                 return;
             }
+
+            if (properties.isRequirePermission() && !permissionCodes.contains("ai:assistant:use")) {
+                send(emitter, AiChatSseEvent.error("无权使用 AI 助手"));
+                emitter.complete();
+                return;
+            }
+
             if (request == null || !StringUtils.hasText(request.message())) {
                 send(emitter, AiChatSseEvent.error("请输入要发送的消息"));
                 emitter.complete();
                 return;
             }
 
-            // 数据库当前模型优先；没有当前模型时回退到 Spring AI 自动配置。
-            ChatClient chatClient = chatClientFactory.create(permissionCodes);
+            // 把 emitter 封装成 eventSink，异步线程安全地推送 tool 事件帧。
+            ChatClient chatClient = chatClientFactory.create(
+                    permissionCodes, sessionId, userId,
+                    event -> sendUnchecked(emitter, event));
+
             if (chatClient == null) {
                 send(emitter, AiChatSseEvent.error("未配置可用的 AI 模型，请设置 AI_MODEL_CHAT 和对应 API Key"));
                 emitter.complete();
@@ -105,7 +115,6 @@ public class AiAgentChatService {
     }
 
     private void send(SseEmitter emitter, AiChatSseEvent event) throws IOException {
-        // 前端只依赖 data 中的 type 字段，保持 SSE 事件名统一可以简化解析逻辑。
         emitter.send(SseEmitter.event().data(event));
     }
 

@@ -1,7 +1,9 @@
 package cc.oofo.ai.agent.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
@@ -9,10 +11,13 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import cc.oofo.ai.agent.dto.AiChatSseEvent;
+import cc.oofo.ai.mcp.service.AiMcpClientManager;
 import cc.oofo.ai.model.entity.AiModelConfig;
 import cc.oofo.ai.model.service.AiModelConfigService;
 import cc.oofo.ai.tool.service.AiToolCallbackService;
@@ -21,7 +26,7 @@ import cc.oofo.framework.exception.BizException;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 根据数据库当前模型和已启用工具创建 ChatClient。
+ * 根据数据库当前模型、已启用工具和 MCP 服务器创建 ChatClient。
  */
 @Service
 @RequiredArgsConstructor
@@ -29,20 +34,34 @@ public class AiChatClientFactory {
 
     private final AiModelConfigService modelConfigService;
     private final AiToolCallbackService toolCallbackService;
+    private final AiMcpClientManager mcpClientManager;
     private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
 
-    public ChatClient create(List<String> permissionCodes) {
+    /**
+     * 创建 ChatClient，合并数据库工具和 MCP 工具，并挂载事件通知与审计。
+     *
+     * @param permissionCodes 当前用户权限码列表，用于工具权限校验
+     * @param sessionId       当前会话 ID，用于审计日志
+     * @param operatorId      当前操作用户 ID，用于审计日志
+     * @param eventSink       SSE 事件回调，工具调用前后推送 tool 事件帧
+     */
+    public ChatClient create(List<String> permissionCodes, String sessionId, String operatorId,
+            Consumer<AiChatSseEvent> eventSink) {
         ChatClient.Builder builder = createBuilder();
         if (builder == null) {
             return null;
         }
 
-        // 工具权限跟随当前登录用户，避免异步模型调用时丢失 Sa-Token 上下文。
+        List<String> safePermissions = permissionCodes == null ? List.of() : permissionCodes;
+
+        List<ToolCallback> allCallbacks = new ArrayList<>();
+        allCallbacks.addAll(toolCallbackService.listEnabledCallbacks(sessionId, operatorId, eventSink));
+        allCallbacks.addAll(mcpClientManager.listToolCallbacks());
+
         return builder
-                .defaultToolCallbacks(toolCallbackService.listEnabledCallbacks())
+                .defaultToolCallbacks(allCallbacks)
                 .defaultToolContext(Map.of(
-                        AiToolExecutionService.TOOL_CONTEXT_PERMISSIONS,
-                        permissionCodes == null ? List.of() : permissionCodes))
+                        AiToolExecutionService.TOOL_CONTEXT_PERMISSIONS, safePermissions))
                 .build();
     }
 
@@ -74,7 +93,6 @@ public class AiChatClientFactory {
         options.model(config.getModel());
         options.apiKey(config.getApiKey());
         if (StringUtils.hasText(config.getBaseUrl())) {
-            // openai-java SDK 不会自动补 /v1，缺省会打到 /chat/completions 导致 404，这里统一补齐。
             options.baseUrl(normalizeOpenAiBaseUrl(config.getBaseUrl()));
         }
         if (config.getTemperature() != null) {

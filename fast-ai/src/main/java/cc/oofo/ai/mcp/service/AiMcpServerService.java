@@ -1,5 +1,6 @@
 package cc.oofo.ai.mcp.service;
 
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -61,6 +62,11 @@ public class AiMcpServerService extends BaseService<AiMcpServer> {
     public void del(String id) {
         getByIdOrThrow(id);
         removeById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AiMcpServer> listEnabled() {
+        return list(new LambdaQueryWrapper<AiMcpServer>().eq(AiMcpServer::getEnabled, true));
     }
 
     public AiMcpServer getByIdOrThrow(String id) {

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import cc.oofo.ai.mcp.dto.AiMcpServerSaveDto;
 import cc.oofo.ai.mcp.entity.AiMcpServer;
 import cc.oofo.ai.mcp.entity.query.AiMcpServerQuery;
+import cc.oofo.ai.mcp.service.AiMcpClientManager;
 import cc.oofo.ai.mcp.service.AiMcpServerService;
 import cc.oofo.framework.web.response.Ps;
 import cc.oofo.framework.web.response.Rs;
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class AiMcpServerController {
 
     private final AiMcpServerService service;
+    private final AiMcpClientManager mcpClientManager;
 
     @GetMapping
     public Ps<AiMcpServer> page(AiMcpServerQuery query) {
@@ -57,6 +59,16 @@ public class AiMcpServerController {
     @OperationLog(title = "MCP 服务配置", type = BusinessType.DELETE)
     public Rs<Void> del(@PathVariable String id) {
         service.del(id);
+        return Rs.ok();
+    }
+
+    /**
+     * 重新加载所有已启用的 MCP 服务器连接（关闭旧连接后重建）。
+     */
+    @PostMapping("/reload")
+    @OperationLog(title = "MCP 服务配置", type = BusinessType.UPDATE)
+    public Rs<Void> reload() {
+        mcpClientManager.reload();
         return Rs.ok();
     }
 }

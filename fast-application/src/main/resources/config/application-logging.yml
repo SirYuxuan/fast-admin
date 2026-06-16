@@ -1,10 +1,11 @@
 logging:
+  # 日志文件根目录（logback-spring.xml 读取此值）
+  file:
+    path: ./logs
   level:
     root: info
     cc:
       oofo: debug
     com:
       baomidou: error
-  # 日志格式：加上 traceId 方便排查问题
-  pattern:
-    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%X{traceId:-NO_TRACE}]){magenta} %clr(${PID}){magenta} --- %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+  # 控制台格式由 logback-spring.xml 统一管理，此处不再配置 pattern
