@@ -16,6 +16,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import cc.oofo.ai.agent.dto.AiChatRequest;
 import cc.oofo.ai.agent.dto.AiChatSseEvent;
 import cc.oofo.ai.mcp.service.AiMcpClientManager;
 import cc.oofo.ai.model.entity.AiModelConfig;
@@ -34,6 +35,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AiChatClientFactory {
 
+    private static final String MODE_AUTO = "auto";
+    private static final String MODE_MANUAL = "manual";
+    private static final String MODE_OFF = "off";
+
     private final AiModelConfigService modelConfigService;
     private final AiToolCallbackService toolCallbackService;
     private final AiMcpClientManager mcpClientManager;
@@ -48,6 +53,7 @@ public class AiChatClientFactory {
      * @param eventSink       SSE 事件回调，工具调用前后推送 tool 事件帧
      */
     public ChatClient create(List<String> permissionCodes, String sessionId, String operatorId,
+            AiChatRequest request,
             Consumer<AiChatSseEvent> eventSink) {
         ChatClient.Builder builder = createBuilder();
         if (builder == null) {
@@ -56,8 +62,9 @@ public class AiChatClientFactory {
 
         List<String> safePermissions = permissionCodes == null ? List.of() : permissionCodes;
 
-        List<ToolCallback> builtinCallbacks = toolCallbackService.listEnabledCallbacks(sessionId, operatorId, eventSink);
-        List<ToolCallback> mcpCallbacks = mcpClientManager.listToolCallbacks(eventSink);
+        List<ToolCallback> builtinCallbacks = resolveBuiltinCallbacks(request, sessionId, operatorId,
+                safePermissions, eventSink);
+        List<ToolCallback> mcpCallbacks = resolveMcpCallbacks(request, eventSink);
         List<ToolCallback> allCallbacks = new ArrayList<>();
         allCallbacks.addAll(builtinCallbacks);
         allCallbacks.addAll(mcpCallbacks);
@@ -68,6 +75,62 @@ public class AiChatClientFactory {
                 .defaultToolContext(Map.of(
                         AiToolExecutionService.TOOL_CONTEXT_PERMISSIONS, safePermissions))
                 .build();
+    }
+
+    /**
+     * 内置工具默认使用 auto：挂载已启用且有权限的普通工具和只读 SQL。
+     * 执行任意 SQL 这类高风险工具只在 manual 模式显式选择时才会挂载。
+     */
+    private List<ToolCallback> resolveBuiltinCallbacks(AiChatRequest request, String sessionId, String operatorId,
+            List<String> safePermissions, Consumer<AiChatSseEvent> eventSink) {
+        String mode = normalizeMode(request == null ? null : request.toolMode(), MODE_AUTO);
+        if (MODE_OFF.equals(mode)) {
+            return List.of();
+        }
+        if (MODE_MANUAL.equals(mode)) {
+            List<String> selectedToolCodes = safeList(request == null ? null : request.toolCodes());
+            boolean includeExecuteSql = selectedToolCodes.contains(AiToolCallbackService.EXECUTE_SQL_TOOL_CODE);
+            return toolCallbackService.listEnabledCallbacks(sessionId, operatorId, safePermissions,
+                    selectedToolCodes, includeExecuteSql, eventSink);
+        }
+        return toolCallbackService.listEnabledCallbacks(sessionId, operatorId, safePermissions, eventSink);
+    }
+
+    /**
+     * MCP 默认关闭。只有前端选择 auto 或 manual 时才会把 MCP 工具暴露给模型，
+     * 避免每次聊天都把全部外部工具 schema 带进上下文。
+     */
+    private List<ToolCallback> resolveMcpCallbacks(AiChatRequest request, Consumer<AiChatSseEvent> eventSink) {
+        String mode = normalizeMode(request == null ? null : request.mcpMode(), MODE_OFF);
+        if (MODE_OFF.equals(mode)) {
+            return List.of();
+        }
+        if (MODE_MANUAL.equals(mode)) {
+            return mcpClientManager.listToolCallbacks(safeList(request == null ? null : request.mcpServerIds()),
+                    eventSink);
+        }
+        return mcpClientManager.listToolCallbacks(eventSink);
+    }
+
+    private String normalizeMode(String mode, String defaultMode) {
+        if (!StringUtils.hasText(mode)) {
+            return defaultMode;
+        }
+        String normalized = mode.trim().toLowerCase();
+        return switch (normalized) {
+            case MODE_AUTO, MODE_MANUAL, MODE_OFF -> normalized;
+            default -> defaultMode;
+        };
+    }
+
+    private List<String> safeList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
     }
 
     private void logToolCallbacks(List<ToolCallback> builtinCallbacks, List<ToolCallback> mcpCallbacks,

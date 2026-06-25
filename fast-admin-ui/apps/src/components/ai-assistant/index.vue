@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import type { AiAgentApi } from '#/api';
+import type { AiAgentApi, AiMcpApi, AiToolApi } from '#/api';
 
 import { computed, h, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import {
+  ChevronDown,
   Copy,
   LoaderCircle,
   Maximize,
@@ -14,16 +15,21 @@ import {
   X,
 } from '@vben/icons';
 
-import { App, Button, Drawer, FloatButton, Modal } from 'ant-design-vue';
+import { App, Button, Drawer, FloatButton, Modal, Select } from 'ant-design-vue';
 import { Bubble, Conversations, Sender } from 'ant-design-x-vue';
 import MarkdownIt from 'markdown-it';
 
 import {
+  confirmAiToolExecution,
   deleteAiAgentSession,
   getAiAgentSessionMessages,
   getAiAgentSessions,
+  getAiMcpServerPage,
+  getAiToolPage,
   streamAiAgentChat,
 } from '#/api';
+
+type AbilityMode = 'auto' | 'manual' | 'off';
 
 type ChatMessage = {
   content: string;
@@ -64,14 +70,27 @@ const detached = ref(savedAssistantState.detached);
 const dragging = ref(false);
 const resizing = ref(false);
 const sending = ref(false);
+const expandedToolIds = ref<string[]>([]);
+const sqlConfirm = ref<{ sql: string; token: string; visible: boolean }>({
+  sql: '',
+  token: '',
+  visible: false,
+});
 const sessionLoading = ref(false);
 const switchingSession = ref(false);
+const abilityLoading = ref(false);
 const input = ref('');
 const sessionId = ref<string>();
 const listRef = ref<HTMLElement>();
 const floatingRef = ref<HTMLElement>();
 const sessions = ref<AiAgentApi.ChatSession[]>([]);
 const messages = ref<ChatMessage[]>([createWelcomeMessage()]);
+const toolMode = ref<AbilityMode>('auto');
+const mcpMode = ref<AbilityMode>('off');
+const selectedToolCodes = ref<string[]>([]);
+const selectedMcpServerIds = ref<string[]>([]);
+const toolOptions = ref<{ label: string; value: string }[]>([]);
+const mcpOptions = ref<{ label: string; value: string }[]>([]);
 const drawerWidth = computed(() => (expanded.value ? 'min(960px, 96vw)' : '420'));
 const conversationItems = computed(() =>
   sessions.value.map((session) => ({
@@ -88,6 +107,11 @@ const shellClass = computed(() => ({
   'ai-assistant-shell': true,
   'is-expanded': expanded.value || detached.value,
 }));
+const modeOptions = [
+  { label: '自动', value: 'auto' },
+  { label: '关闭', value: 'off' },
+  { label: '指定', value: 'manual' },
+];
 const floatingStyle = ref({
   height: savedAssistantState.floatingStyle.height,
   left: savedAssistantState.floatingStyle.left,
@@ -193,6 +217,43 @@ async function loadSessions() {
   }
 }
 
+async function loadAbilityOptions() {
+  if (abilityLoading.value || (toolOptions.value.length && mcpOptions.value.length)) {
+    return;
+  }
+  abilityLoading.value = true;
+  try {
+    const [tools, mcps] = await Promise.all([
+      getAiToolPage({ enabled: true, page: 1, pageSize: 200 }),
+      getAiMcpServerPage({ enabled: true, page: 1, pageSize: 200 }),
+    ]);
+    toolOptions.value = extractPageItems<AiToolApi.ToolConfig>(tools).map((tool) => ({
+      label: `${tool.name || tool.toolCode}（${tool.toolCode}）`,
+      value: tool.toolCode,
+    }));
+    toolOptions.value.push(
+      { label: '只读 SQL（execute_readonly_sql）', value: 'execute_readonly_sql' },
+      { label: '执行 SQL（execute_sql，需确认）', value: 'execute_sql' },
+    );
+    mcpOptions.value = extractPageItems<AiMcpApi.McpServer>(mcps)
+      .filter((server) => server.connected !== false)
+      .map((server) => ({
+        label: `${server.name}${server.toolCount ? `（${server.toolCount} 工具）` : ''}`,
+        value: server.id,
+      }));
+  } catch {
+    message.warning('工具列表加载失败');
+  } finally {
+    abilityLoading.value = false;
+  }
+}
+
+function extractPageItems<T>(response: unknown): T[] {
+  const payload = response as { data?: { items?: unknown }; items?: unknown };
+  const items = payload?.items ?? payload?.data?.items ?? response;
+  return Array.isArray(items) ? items : [];
+}
+
 function getSessionMenu(item: Record<string, unknown>) {
   const session = item.session as AiAgentApi.ChatSession | undefined;
   return {
@@ -276,6 +337,27 @@ function parseProcessJson(processJson?: string) {
   } catch {
     return;
   }
+}
+
+function toggleToolCalls(messageId: string) {
+  const idx = expandedToolIds.value.indexOf(messageId);
+  if (idx >= 0) {
+    expandedToolIds.value.splice(idx, 1);
+  } else {
+    expandedToolIds.value.push(messageId);
+  }
+}
+
+function isToolCallsExpanded(messageId: string) {
+  return expandedToolIds.value.includes(messageId);
+}
+
+function getThoughts(process: ProcessItem[]) {
+  return process.filter((p) => p.type === 'thought');
+}
+
+function getToolCalls(process: ProcessItem[]) {
+  return process.filter((p) => p.type === 'tool');
 }
 
 function openAssistant() {
@@ -396,6 +478,7 @@ function newSession() {
 watch(open, (visible) => {
   if (visible) {
     loadSessions();
+    loadAbilityOptions();
     scrollToBottom();
   }
 });
@@ -574,6 +657,14 @@ function handleEvent(event: AiAgentApi.ChatEvent) {
   }
 
   if (event.type === 'tool') {
+    if (event.phase === 'pending') {
+      sqlConfirm.value = {
+        sql: event.args || '',
+        token: event.messageId || '',
+        visible: true,
+      };
+      return;
+    }
     updateToolProcess(event);
     return;
   }
@@ -591,6 +682,8 @@ function handleEvent(event: AiAgentApi.ChatEvent) {
     const current = messages.value.at(-1);
     if (current?.role === 'assistant') {
       current.status = undefined;
+      const idx = expandedToolIds.value.indexOf(current.id);
+      if (idx >= 0) expandedToolIds.value.splice(idx, 1);
     }
   }
 }
@@ -616,19 +709,28 @@ async function sendMessage(value?: string) {
     id: crypto.randomUUID(),
     role: 'user',
   });
-  messages.value.push({
+  const assistantMsg: ChatMessage = {
     content: '',
     createdAt: new Date().toISOString(),
     id: crypto.randomUUID(),
     process: [],
     role: 'assistant',
     status: 'streaming',
-  });
+  };
+  messages.value.push(assistantMsg);
+  expandedToolIds.value.push(assistantMsg.id);
   scrollToBottom();
 
   try {
     await streamAiAgentChat(
-      { message: content, sessionId: sessionId.value },
+      {
+        mcpMode: mcpMode.value,
+        mcpServerIds: mcpMode.value === 'manual' ? selectedMcpServerIds.value : undefined,
+        message: content,
+        sessionId: sessionId.value,
+        toolCodes: toolMode.value === 'manual' ? selectedToolCodes.value : undefined,
+        toolMode: toolMode.value,
+      },
       handleEvent,
       abortController.signal,
     );
@@ -650,6 +752,14 @@ async function sendMessage(value?: string) {
 function stopMessage() {
   abortController?.abort();
   sending.value = false;
+}
+
+async function respondSqlConfirm(confirmed: boolean) {
+  const { token } = sqlConfirm.value;
+  sqlConfirm.value.visible = false;
+  if (token) {
+    await confirmAiToolExecution(token, confirmed).catch(() => {});
+  }
 }
 </script>
 
@@ -722,33 +832,67 @@ function stopMessage() {
             shape="corner"
             :variant="item.role === 'user' ? 'filled' : 'outlined'"
           >
+            <template #avatar>
+              <div
+                :style="{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  flexShrink: '0',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  lineHeight: '1',
+                  background: item.role === 'user' ? 'hsl(220 9% 46%)' : 'hsl(221 83% 53%)',
+                  color: '#fff',
+                }"
+              >
+                {{ item.role === 'user' ? '我' : 'AI' }}
+              </div>
+            </template>
             <template #header v-if="hasMessageHeader(item)">
               <div :class="['ai-assistant-message-header', `is-${item.role}`]">
                 <div class="ai-assistant-message-meta">{{ messageMetaText(item) }}</div>
               </div>
               <div v-if="item.role === 'assistant' && item.process?.length" class="ai-assistant-process">
-                <div class="ai-assistant-process-title">思考与执行</div>
+                <!-- 思考过程：始终显示 -->
                 <div
-                  v-for="process in item.process"
-                  :key="process.id"
-                  :class="['ai-assistant-process-item', `is-${process.status}`]"
+                  v-for="p in getThoughts(item.process)"
+                  :key="p.id"
+                  class="ai-assistant-thought-item"
                 >
-                  <div class="ai-assistant-process-row">
-                    <LoaderCircle
-                      v-if="process.status === 'running'"
-                      class="ai-assistant-process-spinner"
+                  <LoaderCircle v-if="item.status === 'streaming' && p === getThoughts(item.process).at(-1)" class="ai-assistant-process-spinner" />
+                  <span v-else class="ai-assistant-thought-dot"></span>
+                  <span>{{ p.title }}</span>
+                </div>
+                <!-- 工具调用：可折叠 -->
+                <div v-if="getToolCalls(item.process).length" class="ai-assistant-tool-group">
+                  <button type="button" class="ai-assistant-tool-toggle" @click.stop="toggleToolCalls(item.id)">
+                    <span>工具调用（{{ getToolCalls(item.process).length }}）</span>
+                    <ChevronDown
+                      :class="['ai-assistant-process-chevron', isToolCallsExpanded(item.id) ? '' : 'is-collapsed']"
                     />
-                    <span v-else class="ai-assistant-process-dot"></span>
-                    <span class="ai-assistant-process-text">
-                      {{ process.title }}
-                    </span>
-                    <span v-if="process.costMs" class="ai-assistant-process-cost">
-                      {{ process.costMs }}ms
-                    </span>
+                  </button>
+                  <div v-show="isToolCallsExpanded(item.id)" class="ai-assistant-process-items">
+                    <div
+                      v-for="p in getToolCalls(item.process)"
+                      :key="p.id"
+                      :class="['ai-assistant-process-item', `is-${p.status}`]"
+                    >
+                      <div class="ai-assistant-process-row">
+                        <LoaderCircle
+                          v-if="p.status === 'running'"
+                          class="ai-assistant-process-spinner"
+                        />
+                        <span v-else class="ai-assistant-process-dot"></span>
+                        <span class="ai-assistant-process-text">{{ p.title }}</span>
+                        <span v-if="p.costMs" class="ai-assistant-process-cost">{{ p.costMs }}ms</span>
+                      </div>
+                      <pre v-if="p.detail" class="ai-assistant-process-detail">{{ p.detail }}</pre>
+                    </div>
                   </div>
-                  <pre v-if="process.detail" class="ai-assistant-process-detail">{{
-                    process.detail
-                  }}</pre>
                 </div>
               </div>
             </template>
@@ -757,6 +901,49 @@ function stopMessage() {
               <div class="ai-assistant-markdown" v-html="renderMarkdown(content)"></div>
             </template>
           </Bubble>
+        </div>
+
+        <div class="ai-assistant-scope">
+          <div class="ai-assistant-scope-item">
+            <span>工具</span>
+            <Select
+              v-model:value="toolMode"
+              class="ai-assistant-scope-mode"
+              :disabled="sending"
+              :options="modeOptions"
+              size="small"
+            />
+            <Select
+              v-if="toolMode === 'manual'"
+              v-model:value="selectedToolCodes"
+              class="ai-assistant-scope-select"
+              :disabled="sending || abilityLoading"
+              mode="multiple"
+              :options="toolOptions"
+              placeholder="选择工具"
+              size="small"
+            />
+          </div>
+          <div class="ai-assistant-scope-item">
+            <span>MCP</span>
+            <Select
+              v-model:value="mcpMode"
+              class="ai-assistant-scope-mode"
+              :disabled="sending"
+              :options="modeOptions"
+              size="small"
+            />
+            <Select
+              v-if="mcpMode === 'manual'"
+              v-model:value="selectedMcpServerIds"
+              class="ai-assistant-scope-select"
+              :disabled="sending || abilityLoading"
+              mode="multiple"
+              :options="mcpOptions"
+              placeholder="选择 MCP"
+              size="small"
+            />
+          </div>
         </div>
 
         <Sender
@@ -841,33 +1028,67 @@ function stopMessage() {
               shape="corner"
               :variant="item.role === 'user' ? 'filled' : 'outlined'"
             >
+              <template #avatar>
+                <div
+                  :style="{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    flexShrink: '0',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    lineHeight: '1',
+                    background: item.role === 'user' ? 'hsl(220 9% 46%)' : 'hsl(221 83% 53%)',
+                    color: '#fff',
+                  }"
+                >
+                  {{ item.role === 'user' ? '我' : 'AI' }}
+                </div>
+              </template>
               <template #header v-if="hasMessageHeader(item)">
                 <div :class="['ai-assistant-message-header', `is-${item.role}`]">
                   <div class="ai-assistant-message-meta">{{ messageMetaText(item) }}</div>
                 </div>
                 <div v-if="item.role === 'assistant' && item.process?.length" class="ai-assistant-process">
-                  <div class="ai-assistant-process-title">思考与执行</div>
+                  <!-- 思考过程：始终显示 -->
                   <div
-                    v-for="process in item.process"
-                    :key="process.id"
-                    :class="['ai-assistant-process-item', `is-${process.status}`]"
+                    v-for="p in getThoughts(item.process)"
+                    :key="p.id"
+                    class="ai-assistant-thought-item"
                   >
-                    <div class="ai-assistant-process-row">
-                      <LoaderCircle
-                        v-if="process.status === 'running'"
-                        class="ai-assistant-process-spinner"
+                    <LoaderCircle v-if="item.status === 'streaming' && p === getThoughts(item.process).at(-1)" class="ai-assistant-process-spinner" />
+                    <span v-else class="ai-assistant-thought-dot"></span>
+                    <span>{{ p.title }}</span>
+                  </div>
+                  <!-- 工具调用：可折叠 -->
+                  <div v-if="getToolCalls(item.process).length" class="ai-assistant-tool-group">
+                    <button type="button" class="ai-assistant-tool-toggle" @click.stop="toggleToolCalls(item.id)">
+                      <span>工具调用（{{ getToolCalls(item.process).length }}）</span>
+                      <ChevronDown
+                        :class="['ai-assistant-process-chevron', isToolCallsExpanded(item.id) ? '' : 'is-collapsed']"
                       />
-                      <span v-else class="ai-assistant-process-dot"></span>
-                      <span class="ai-assistant-process-text">
-                        {{ process.title }}
-                      </span>
-                      <span v-if="process.costMs" class="ai-assistant-process-cost">
-                        {{ process.costMs }}ms
-                      </span>
+                    </button>
+                    <div v-show="isToolCallsExpanded(item.id)" class="ai-assistant-process-items">
+                      <div
+                        v-for="p in getToolCalls(item.process)"
+                        :key="p.id"
+                        :class="['ai-assistant-process-item', `is-${p.status}`]"
+                      >
+                        <div class="ai-assistant-process-row">
+                          <LoaderCircle
+                            v-if="p.status === 'running'"
+                            class="ai-assistant-process-spinner"
+                          />
+                          <span v-else class="ai-assistant-process-dot"></span>
+                          <span class="ai-assistant-process-text">{{ p.title }}</span>
+                          <span v-if="p.costMs" class="ai-assistant-process-cost">{{ p.costMs }}ms</span>
+                        </div>
+                        <pre v-if="p.detail" class="ai-assistant-process-detail">{{ p.detail }}</pre>
+                      </div>
                     </div>
-                    <pre v-if="process.detail" class="ai-assistant-process-detail">{{
-                      process.detail
-                    }}</pre>
                   </div>
                 </div>
               </template>
@@ -876,6 +1097,49 @@ function stopMessage() {
                 <div class="ai-assistant-markdown" v-html="renderMarkdown(content)"></div>
               </template>
             </Bubble>
+          </div>
+
+          <div class="ai-assistant-scope">
+            <div class="ai-assistant-scope-item">
+              <span>工具</span>
+              <Select
+                v-model:value="toolMode"
+                class="ai-assistant-scope-mode"
+                :disabled="sending"
+                :options="modeOptions"
+                size="small"
+              />
+              <Select
+                v-if="toolMode === 'manual'"
+                v-model:value="selectedToolCodes"
+                class="ai-assistant-scope-select"
+                :disabled="sending || abilityLoading"
+                mode="multiple"
+                :options="toolOptions"
+                placeholder="选择工具"
+                size="small"
+              />
+            </div>
+            <div class="ai-assistant-scope-item">
+              <span>MCP</span>
+              <Select
+                v-model:value="mcpMode"
+                class="ai-assistant-scope-mode"
+                :disabled="sending"
+                :options="modeOptions"
+                size="small"
+              />
+              <Select
+                v-if="mcpMode === 'manual'"
+                v-model:value="selectedMcpServerIds"
+                class="ai-assistant-scope-select"
+                :disabled="sending || abilityLoading"
+                mode="multiple"
+                :options="mcpOptions"
+                placeholder="选择 MCP"
+                size="small"
+              />
+            </div>
           </div>
 
           <Sender
@@ -898,6 +1162,19 @@ function stopMessage() {
       ></div>
     </div>
   </Teleport>
+
+  <Modal
+    :open="sqlConfirm.visible"
+    title="确认执行 SQL"
+    ok-text="确认执行"
+    cancel-text="取消"
+    :ok-button-props="{ danger: true }"
+    @ok="respondSqlConfirm(true)"
+    @cancel="respondSqlConfirm(false)"
+  >
+    <p class="ai-sql-confirm-tip">AI 助手请求执行以下 SQL，请确认是否继续：</p>
+    <pre class="ai-sql-confirm-code">{{ sqlConfirm.sql }}</pre>
+  </Modal>
 </template>
 
 <style scoped>
@@ -1026,7 +1303,7 @@ function stopMessage() {
   display: inline-flex;
   align-items: center;
   height: 26px;
-  gap: 4px;
+  gap: 0;
   padding-inline: 6px;
   font-size: 12px;
   line-height: 1;
@@ -1035,6 +1312,7 @@ function stopMessage() {
 .ai-assistant-sessions-head :deep(.ant-btn .ant-btn-icon) {
   display: inline-flex;
   align-items: center;
+  margin-inline-end: 2px;
 }
 
 .ai-assistant-session-empty {
@@ -1217,6 +1495,40 @@ function stopMessage() {
   backdrop-filter: blur(2px);
 }
 
+.ai-assistant-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--muted) / 35%);
+}
+
+.ai-assistant-scope-item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 210px;
+  gap: 6px;
+}
+
+.ai-assistant-scope-item > span {
+  flex: 0 0 auto;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.ai-assistant-scope-mode {
+  width: 78px;
+  flex: 0 0 auto;
+}
+
+.ai-assistant-scope-select {
+  min-width: 120px;
+  flex: 1 1 160px;
+}
+
 .ai-assistant-message {
   display: flex;
   margin-block-end: 12px;
@@ -1319,18 +1631,78 @@ function stopMessage() {
   padding: 4px 8px;
 }
 
+:deep(.ant-bubble-avatar) {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
 .ai-assistant-process {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   margin-block-end: 8px;
   border-block-end: 1px solid hsl(var(--border));
   padding-block-end: 8px;
 }
 
-.ai-assistant-process-title {
+.ai-assistant-thought-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.ai-assistant-thought-dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground) / 50%);
+}
+
+.ai-assistant-tool-group {
+  display: grid;
+  gap: 4px;
+  margin-block-start: 2px;
+}
+
+.ai-assistant-tool-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--muted) / 30%);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
   font-size: 12px;
   font-weight: 600;
+  padding: 5px 8px;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.ai-assistant-tool-toggle:hover {
+  background: hsl(var(--muted) / 55%);
+  color: hsl(var(--foreground));
+}
+
+.ai-assistant-process-chevron {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  transition: transform 0.2s ease;
+}
+
+.ai-assistant-process-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.ai-assistant-process-items {
+  display: grid;
+  gap: 6px;
 }
 
 .ai-assistant-process-item {
@@ -1402,5 +1774,23 @@ function stopMessage() {
   to {
     transform: rotate(360deg);
   }
+}
+
+.ai-sql-confirm-tip {
+  margin-bottom: 8px;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+}
+
+.ai-sql-confirm-code {
+  overflow-x: auto;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>

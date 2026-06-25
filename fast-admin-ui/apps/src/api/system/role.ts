@@ -24,6 +24,14 @@ async function getRoleList(params: Recordable<any>) {
 }
 
 /**
+ * 获取角色详情
+ * @param id 角色 ID
+ */
+async function getRoleById(id: string) {
+  return requestClient.get<SystemRoleApi.SystemRole>(`${BaseUrl}/${id}`);
+}
+
+/**
  * 创建角色
  * @param data 角色数据
  */
@@ -49,4 +57,4 @@ async function deleteRole(id: string) {
   return requestClient.delete(`${BaseUrl}/${id}`);
 }
 
-export { createRole, deleteRole, getRoleList, updateRole };
+export { createRole, deleteRole, getRoleById, getRoleList, updateRole };

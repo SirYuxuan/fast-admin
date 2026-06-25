@@ -7,10 +7,15 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import org.springframework.ai.chat.model.ToolContext;
@@ -67,13 +72,22 @@ public class AiMcpClientManager implements DisposableBean {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    private final ExecutorService initExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "mcp-init");
+        t.setDaemon(true);
+        return t;
+    });
+
     @PostConstruct
     public void init() {
-        try {
-            reload();
-        } catch (Exception e) {
-            log.warn("MCP client initialization failed at startup (will retry on next reload): {}", e.getMessage());
-        }
+        // 异步初始化，连接超时/失败不阻塞应用启动
+        initExecutor.execute(() -> {
+            try {
+                reload();
+            } catch (Exception e) {
+                log.warn("MCP client initialization failed at startup (will retry on next reload): {}", e.getMessage());
+            }
+        });
     }
 
     /**
@@ -261,7 +275,7 @@ public class AiMcpClientManager implements DisposableBean {
      * 返回所有已连接 MCP 服务器提供的工具回调列表。
      */
     public List<ToolCallback> listToolCallbacks() {
-        return listToolCallbacks(null);
+        return listToolCallbacks((Consumer<AiChatSseEvent>) null);
     }
 
     /**
@@ -279,6 +293,28 @@ public class AiMcpClientManager implements DisposableBean {
             callbacks = reloadAndListToolCallbacks(eventSink, "MCP 工具列表为空");
         }
         return mergeCallbacks(callbacks, manualCallbacks);
+    }
+
+    /**
+     * 只返回指定 MCP 服务提供的工具回调。连接仍由 Manager 统一维护，
+     * 但每次聊天可以按前端选择缩小挂载范围。
+     */
+    public List<ToolCallback> listToolCallbacks(Collection<String> serverIds, Consumer<AiChatSseEvent> eventSink) {
+        Set<String> selectedIds = normalizeServerIds(serverIds);
+        if (selectedIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<ToolCallback> callbacks = listSelectedToolCallbacks(selectedIds, eventSink);
+        if (callbacks.isEmpty() && hasEnabledServers()) {
+            try {
+                reload();
+                callbacks = listSelectedToolCallbacks(selectedIds, eventSink);
+            } catch (Exception e) {
+                log.warn("Reload MCP before listing selected tool callbacks failed: {}", e.getMessage());
+            }
+        }
+        return callbacks;
     }
 
     private List<ToolCallback> reloadAndListToolCallbacks(Consumer<AiChatSseEvent> eventSink, String reason) {
@@ -326,6 +362,33 @@ public class AiMcpClientManager implements DisposableBean {
                 .toList();
     }
 
+    private List<ToolCallback> listSelectedToolCallbacks(Set<String> selectedIds, Consumer<AiChatSseEvent> eventSink) {
+        List<McpSyncClient> clients = selectedIds.stream()
+                .map(activeClientMap::get)
+                .filter(client -> client != null)
+                .toList();
+        List<ToolCallback> sdkCallbacks = listToolCallbacks(clients, eventSink);
+        List<ToolCallback> manualCallbacks = manualStreamableServers.entrySet().stream()
+                .filter(entry -> selectedIds.contains(entry.getKey()))
+                .flatMap(entry -> entry.getValue().snapshot().tools().stream()
+                        .map(tool -> manualStreamableCallback(entry.getValue().server(), tool, eventSink)))
+                .toList();
+        return mergeCallbacks(sdkCallbacks, manualCallbacks);
+    }
+
+    private Set<String> normalizeServerIds(Collection<String> serverIds) {
+        if (serverIds == null || serverIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> selectedIds = new HashSet<>();
+        for (String id : serverIds) {
+            if (StringUtils.hasText(id)) {
+                selectedIds.add(id);
+            }
+        }
+        return selectedIds;
+    }
+
     private List<ToolCallback> mergeCallbacks(List<ToolCallback> sdkCallbacks, List<ToolCallback> manualCallbacks) {
         if ((sdkCallbacks == null || sdkCallbacks.isEmpty()) && (manualCallbacks == null || manualCallbacks.isEmpty())) {
             return List.of();
@@ -342,6 +405,7 @@ public class AiMcpClientManager implements DisposableBean {
 
     @Override
     public void destroy() {
+        initExecutor.shutdownNow();
         closeAll();
     }
 

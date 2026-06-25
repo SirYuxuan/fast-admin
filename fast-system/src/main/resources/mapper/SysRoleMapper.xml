@@ -2,8 +2,8 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cc.oofo.system.role.mapper.SysRoleMapper">
 
-    <!-- 角色结果映射（带权限） -->
-    <resultMap id="roleWithPermissions" type="cc.oofo.system.role.entity.dto.SysRoleDto">
+    <!-- 角色列表结果映射 -->
+    <resultMap id="roleListResultMap" type="cc.oofo.system.role.entity.dto.SysRoleDto">
         <id property="id" column="id" />
         <result property="name" column="name" />
         <result property="code" column="code" />
@@ -13,9 +13,6 @@
         <result property="status" column="is_enabled" />
         <result property="createTime" column="created_at" />
         <result property="updateTime" column="updated_at" />
-        <collection property="permissions" ofType="java.lang.String">
-            <result column="menu_id" />
-        </collection>
     </resultMap>
 
     <!-- 查询条件 -->
@@ -46,10 +43,9 @@
         </where>
     </sql>
 
-    <!-- 分页查询角色列表（带权限） -->
-    <select id="listRoleWithPermissions" resultMap="roleWithPermissions"> SELECT r.*, rm.menu_id
-        FROM sys_role r LEFT JOIN sys_roles_menus rm ON rm.role_id = r.id <include refid="roleWhere" />
-        ORDER BY r.created_at DESC, r.id, rm.menu_id <if test="query.pageSize != null"> LIMIT
+    <!-- 分页查询角色列表（权限在编辑详情中单独查询） -->
+    <select id="listRoleWithPermissions" resultMap="roleListResultMap"> SELECT * FROM sys_role <include refid="roleWhere" />
+        ORDER BY created_at DESC, id <if test="query.pageSize != null"> LIMIT
         #{query.pageSize} <if test="query.page != null and query.page != 1"> OFFSET
         #{query.pageSize} * (#{query.page} - 1) </if>
         </if>

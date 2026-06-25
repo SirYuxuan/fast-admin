@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import cc.oofo.ai.agent.dto.AiChatSseEvent;
 import cc.oofo.ai.agent.entity.AiToolCallLog;
 import cc.oofo.ai.agent.mapper.AiToolCallLogMapper;
+import cc.oofo.ai.agent.service.AiToolConfirmationService;
 import cc.oofo.ai.config.AiAssistantSettingService;
 import cc.oofo.ai.tool.entity.AiToolConfig;
 import cc.oofo.framework.exception.BizException;
@@ -36,7 +37,8 @@ public class AiToolCallbackService {
     private static final String INPUT_SCHEMA = """
             {"type":"object","additionalProperties":true}
             """;
-    private static final String READONLY_SQL_TOOL_CODE = "execute_readonly_sql";
+    public static final String READONLY_SQL_TOOL_CODE = "execute_readonly_sql";
+    public static final String EXECUTE_SQL_TOOL_CODE = "execute_sql";
     private static final String READONLY_SQL_INPUT_SCHEMA = """
             {
               "type":"object",
@@ -48,30 +50,73 @@ public class AiToolCallbackService {
               }
             }
             """;
+    private static final String EXECUTE_SQL_INPUT_SCHEMA = """
+            {
+              "type":"object",
+              "additionalProperties":false,
+              "required":["sql"],
+              "properties":{
+                "sql":{"type":"string","description":"任意 SQL 语句，支持 select/insert/update/delete/ddl，使用 :param 命名参数"},
+                "params":{"type":"object","description":"SQL 命名参数，例如 {\\\"userId\\\":\\\"1\\\"}"}
+              }
+            }
+            """;
     private static final int RESULT_MAX_CHARS = 4000;
 
     private final AiAssistantSettingService settingService;
     private final AiToolConfigService toolConfigService;
     private final AiToolExecutionService toolExecutionService;
+    private final AiToolConfirmationService confirmationService;
     private final AiToolCallLogMapper toolCallLogMapper;
     private final ObjectMapper objectMapper;
 
     /**
-     * 返回所有已启用工具的 ToolCallback 列表。
+     * 返回当前用户有权使用的已启用工具列表。无权限的工具不会挂载给模型。
      *
-     * @param sessionId   当前对话会话 ID，用于审计日志
-     * @param operatorId  当前操作用户 ID，用于审计日志
-     * @param eventSink   SSE 事件回调，工具调用前后发送 tool 事件帧；可为 null（跳过通知）
+     * @param sessionId       当前对话会话 ID，用于审计日志
+     * @param operatorId      当前操作用户 ID，用于审计日志
+     * @param permissionCodes 当前用户权限码，用于过滤无权限工具
+     * @param eventSink       SSE 事件回调，工具调用前后发送 tool 事件帧；可为 null（跳过通知）
      */
     public List<ToolCallback> listEnabledCallbacks(String sessionId, String operatorId,
-            Consumer<AiChatSseEvent> eventSink) {
+            Collection<String> permissionCodes, Consumer<AiChatSseEvent> eventSink) {
+        return listEnabledCallbacks(sessionId, operatorId, permissionCodes, null, false, eventSink);
+    }
+
+    /**
+     * 按请求选择范围返回工具回调。
+     *
+     * <p>selectedToolCodes 为空表示自动模式，会挂载普通已启用工具和只读 SQL；任意 SQL 工具
+     * 默认不进入自动模式，必须由前端显式选择后才会暴露给模型。</p>
+     */
+    public List<ToolCallback> listEnabledCallbacks(String sessionId, String operatorId,
+            Collection<String> permissionCodes, Collection<String> selectedToolCodes,
+            boolean includeExecuteSql, Consumer<AiChatSseEvent> eventSink) {
+        boolean manualMode = selectedToolCodes != null;
         List<ToolCallback> callbacks = new ArrayList<>(toolConfigService.listEnabled().stream()
+                .filter(tool -> hasPermission(permissionCodes, tool.getPermissionCode()))
+                .filter(tool -> !manualMode || selectedToolCodes.contains(tool.getToolCode()))
                 .map(tool -> toCallback(tool, sessionId, operatorId, eventSink))
                 .toList());
-        if (settingService.isReadonlySqlEnabled()) {
+        if (settingService.isReadonlySqlEnabled()
+                && hasPermission(permissionCodes, settingService.getReadonlySqlPermissionCode())
+                && (!manualMode || selectedToolCodes.contains(READONLY_SQL_TOOL_CODE))) {
             callbacks.add(readonlySqlCallback(sessionId, operatorId, eventSink));
         }
+        if (settingService.isExecuteSqlEnabled()
+                && includeExecuteSql
+                && hasPermission(permissionCodes, settingService.getExecuteSqlPermissionCode())
+                && (!manualMode || selectedToolCodes.contains(EXECUTE_SQL_TOOL_CODE))) {
+            callbacks.add(executeSqlCallback(sessionId, operatorId, eventSink));
+        }
         return callbacks;
+    }
+
+    private boolean hasPermission(Collection<String> permissionCodes, String requiredCode) {
+        if (!StringUtils.hasText(requiredCode)) {
+            return true;
+        }
+        return permissionCodes != null && permissionCodes.contains(requiredCode);
     }
 
     private ToolCallback toCallback(AiToolConfig tool, String sessionId, String operatorId,
@@ -138,6 +183,61 @@ public class AiToolCallbackService {
                 .inputType(new ParameterizedTypeReference<Map<String, Object>>() {
                 })
                 .build();
+    }
+
+    private ToolCallback executeSqlCallback(String sessionId, String operatorId,
+            Consumer<AiChatSseEvent> eventSink) {
+        return FunctionToolCallback
+                .builder(EXECUTE_SQL_TOOL_CODE, (Map<String, Object> input, ToolContext context) -> {
+                    String sql = getRequiredString(input, "sql");
+                    String argsJson = toJson(input);
+
+                    // 发送 pending 事件，等待用户在前端确认后才继续执行。
+                    String confirmToken = java.util.UUID.randomUUID().toString();
+                    notify(eventSink, AiChatSseEvent.toolPending(EXECUTE_SQL_TOOL_CODE, sql, confirmToken));
+                    boolean confirmed = confirmationService.waitForConfirmation(confirmToken);
+                    if (!confirmed) {
+                        return "用户已取消 SQL 执行。";
+                    }
+
+                    notify(eventSink, AiChatSseEvent.toolStart(EXECUTE_SQL_TOOL_CODE, argsJson));
+                    long start = System.currentTimeMillis();
+                    try {
+                        checkExecuteSqlPermission(getPermissionCodes(context));
+                        String result = toolExecutionService.executeAnySql(
+                                sql, getParams(input), settingService.getExecuteSqlMaxRows());
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(EXECUTE_SQL_TOOL_CODE, "builtin", true, cost));
+                        writeAuditLog(sessionId, operatorId, EXECUTE_SQL_TOOL_CODE,
+                                argsJson, truncate(result), true, null, cost);
+                        return result;
+                    } catch (Exception e) {
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(EXECUTE_SQL_TOOL_CODE, "builtin", false, cost));
+                        writeAuditLog(sessionId, operatorId, EXECUTE_SQL_TOOL_CODE,
+                                argsJson, null, false, e.getMessage(), cost);
+                        throw e;
+                    }
+                })
+                .description("""
+                        执行任意 SQL 并返回结果，支持 select/insert/update/delete/ddl。
+                        执行前必须先向用户展示 SQL 内容并等待用户确认，用户同意后方可执行。
+                        查询语句使用 :param 命名参数并放入 params 对象。
+                        """)
+                .inputSchema(EXECUTE_SQL_INPUT_SCHEMA)
+                .inputType(new ParameterizedTypeReference<Map<String, Object>>() {
+                })
+                .build();
+    }
+
+    private void checkExecuteSqlPermission(Collection<String> permissionCodes) {
+        String permissionCode = settingService.getExecuteSqlPermissionCode();
+        if (!StringUtils.hasText(permissionCode)) {
+            return;
+        }
+        if (permissionCodes == null || !permissionCodes.contains(permissionCode)) {
+            throw new BizException("无权调用 AI 执行 SQL 工具");
+        }
     }
 
     private void checkReadonlySqlPermission(Collection<String> permissionCodes) {

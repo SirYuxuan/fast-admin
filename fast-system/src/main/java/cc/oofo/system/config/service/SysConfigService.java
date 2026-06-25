@@ -40,6 +40,16 @@ public class SysConfigService extends BaseService<SysConfig> {
         if (!StringUtils.hasText(data.getId())) {
             throw new BizException("ID 不能为空");
         }
+        SysConfig existing = getById(data.getId());
+        if (existing != null && Integer.valueOf(1).equals(existing.getConfigType())) {
+            // 内置参数只允许修改参数值和备注
+            SysConfig update = new SysConfig();
+            update.setId(data.getId());
+            update.setConfigValue(data.getConfigValue());
+            update.setRemark(data.getRemark());
+            updateById(update);
+            return;
+        }
         if (keyExists(data.getId(), data.getConfigKey())) {
             throw new BizException("参数键名已存在");
         }

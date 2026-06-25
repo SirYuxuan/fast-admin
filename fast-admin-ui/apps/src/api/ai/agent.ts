@@ -6,7 +6,11 @@ import { requestClient } from '#/api/request';
 export namespace AiAgentApi {
   export interface ChatRequest {
     message: string;
+    mcpMode?: 'auto' | 'manual' | 'off';
+    mcpServerIds?: string[];
     sessionId?: string;
+    toolCodes?: string[];
+    toolMode?: 'auto' | 'manual' | 'off';
   }
 
   export interface ChatEvent {
@@ -18,7 +22,7 @@ export namespace AiAgentApi {
     modelName?: string;
     modelProvider?: string;
     ok?: boolean;
-    phase?: 'end' | 'start';
+    phase?: 'end' | 'pending' | 'start';
     sessionId?: string;
     source?: 'builtin' | 'mcp' | string;
     text?: string;
@@ -59,6 +63,12 @@ export function getAiAgentSessionMessages(sessionId: string) {
 
 export function deleteAiAgentSession(sessionId: string) {
   return requestClient.delete(`${Url}/sessions/${sessionId}`);
+}
+
+export function confirmAiToolExecution(token: string, confirmed: boolean) {
+  return requestClient.post(`${Url}/confirm/${token}`, null, {
+    params: { confirmed },
+  });
 }
 
 function resolveApiUrl(path: string) {

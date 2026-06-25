@@ -93,7 +93,11 @@ export function useColumns<T = SysConfigApi.Config>(
         name: 'CellOperation',
         options: [
           { code: 'edit', authCode: 'system:config:edit' },
-          { code: 'delete', authCode: 'system:config:delete' },
+          {
+            code: 'delete',
+            authCode: 'system:config:delete',
+            disabled: (row: SysConfigApi.Config) => row.configType === 1,
+          },
         ],
       },
       field: 'operation',

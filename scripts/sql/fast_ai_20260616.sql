@@ -124,6 +124,29 @@ ON DUPLICATE KEY UPDATE
   `updated_at` = VALUES(`updated_at`),
   `is_deleted` = 0;
 
+INSERT INTO `ai_tool_config`
+(`id`, `name`, `tool_code`, `type`, `description`, `enabled`, `system_builtin`, `permission_code`,
+ `method`, `url`, `headers_json`, `body_template`, `sql_text`, `read_only`, `timeout_ms`, `remark`,
+ `created_by`, `created_at`, `updated_by`, `updated_at`, `is_deleted`)
+VALUES
+('builtin_execute_sql', '执行任意 SQL', 'execute_sql', 'sql',
+ '系统内置工具：执行任意 SQL（select/insert/update/delete/ddl），执行前需用户二次确认。',
+ 0, 1, 'ai:sql:execute',
+ NULL, NULL, NULL, NULL, NULL, 0, 10000, '系统内置，开关来自系统参数 ai.execute-sql.enabled',
+ 'system', NOW(), 'system', NOW(), 0)
+ON DUPLICATE KEY UPDATE
+  `name` = VALUES(`name`),
+  `type` = VALUES(`type`),
+  `description` = VALUES(`description`),
+  `system_builtin` = 1,
+  `permission_code` = VALUES(`permission_code`),
+  `read_only` = VALUES(`read_only`),
+  `timeout_ms` = VALUES(`timeout_ms`),
+  `remark` = VALUES(`remark`),
+  `updated_by` = VALUES(`updated_by`),
+  `updated_at` = VALUES(`updated_at`),
+  `is_deleted` = 0;
+
 -- ----------------------------
 -- AI 对话会话
 -- ----------------------------
@@ -222,6 +245,30 @@ VALUES
  'system', NOW(), 'system', NOW(), 0),
 ('ai_readonly_sql_max_rows', 'AI只读SQL最大返回行数', 'ai.readonly-sql.max-rows', '100', 1,
  '内置 execute_readonly_sql 工具单次最多返回行数，代码层最大 100',
+ 'system', NOW(), 'system', NOW(), 0)
+ON DUPLICATE KEY UPDATE
+  `config_name` = VALUES(`config_name`),
+  `config_type` = VALUES(`config_type`),
+  `remark` = VALUES(`remark`),
+  `updated_by` = VALUES(`updated_by`),
+  `updated_at` = VALUES(`updated_at`),
+  `is_deleted` = 0;
+
+-- ----------------------------
+-- AI 执行 SQL 内置工具系统参数
+-- ----------------------------
+INSERT INTO `sys_config`
+(`id`, `config_name`, `config_key`, `config_value`, `config_type`, `remark`,
+ `created_by`, `created_at`, `updated_by`, `updated_at`, `is_deleted`)
+VALUES
+('ai_execute_sql_enabled', 'AI执行SQL工具开关', 'ai.execute-sql.enabled', 'false', 1,
+ '控制内置 execute_sql 工具是否注册给模型，默认关闭，开启后 AI 可执行任意 SQL',
+ 'system', NOW(), 'system', NOW(), 0),
+('ai_execute_sql_perm', 'AI执行SQL工具权限码', 'ai.execute-sql.permission-code', 'ai:sql:execute', 1,
+ '调用内置 execute_sql 工具需要的权限码，留空则不校验权限',
+ 'system', NOW(), 'system', NOW(), 0),
+('ai_execute_sql_max_rows', 'AI执行SQL最大返回行数', 'ai.execute-sql.max-rows', '100', 1,
+ '内置 execute_sql 工具查询语句单次最多返回行数，代码层最大 500',
  'system', NOW(), 'system', NOW(), 0)
 ON DUPLICATE KEY UPDATE
   `config_name` = VALUES(`config_name`),

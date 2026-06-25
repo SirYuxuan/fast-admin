@@ -50,7 +50,16 @@ const [Modal, modalApi] = useVbenModal({
       const data = modalApi.getData<SysConfigApi.Config>();
       formData.value = data ?? undefined;
       formApi.resetForm();
-      if (data) formApi.setValues(data);
+      if (data) {
+        formApi.setValues(data);
+        const isBuiltin = data.configType === 1;
+        const locked = { componentProps: { disabled: isBuiltin } };
+        formApi.updateSchema([
+          { fieldName: 'configName', ...locked },
+          { fieldName: 'configKey', ...locked },
+          { fieldName: 'configType', ...locked },
+        ]);
+      }
     }
   },
 });

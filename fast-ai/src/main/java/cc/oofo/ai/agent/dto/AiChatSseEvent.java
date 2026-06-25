@@ -51,6 +51,12 @@ public record AiChatSseEvent(
                 null);
     }
 
+    /** 工具执行前等待用户确认的事件，sql 为待执行语句，confirmToken 用于前端回调确认接口。 */
+    public static AiChatSseEvent toolPending(String toolName, String sql, String confirmToken) {
+        return new AiChatSseEvent("tool", null, null, null, null, null, null, confirmToken,
+                toolName, "builtin", "pending", sql, null, null);
+    }
+
     /** 工具调用开始事件，args 为入参 JSON 字符串。 */
     public static AiChatSseEvent toolStart(String toolName, String args) {
         return toolStart(toolName, "builtin", args);

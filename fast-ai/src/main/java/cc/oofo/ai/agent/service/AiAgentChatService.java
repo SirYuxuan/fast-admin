@@ -99,7 +99,7 @@ public class AiAgentChatService {
 
             // 把 emitter 封装成 eventSink，异步线程安全地推送 tool 事件帧。
             ChatClient chatClient = chatClientFactory.create(
-                    permissionCodes, sessionId, userId,
+                    permissionCodes, sessionId, userId, request,
                     event -> sendProcessEventUnchecked(emitter, processItems, event));
 
             if (chatClient == null) {

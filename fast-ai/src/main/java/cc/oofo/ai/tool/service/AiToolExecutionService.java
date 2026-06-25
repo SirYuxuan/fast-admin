@@ -58,6 +58,35 @@ public class AiToolExecutionService {
         return executeHttp(tool, safeArgs);
     }
 
+    public String executeAnySql(String sql, Map<String, Object> params, int maxRows) {
+        if (!StringUtils.hasText(sql)) {
+            throw new BizException("SQL 不能为空");
+        }
+        Map<String, Object> safeParams = params == null ? Map.of() : new LinkedHashMap<>(params);
+        String normalized = sql.strip().toLowerCase();
+        if (normalized.endsWith(";")) {
+            normalized = normalized.substring(0, normalized.length() - 1).stripTrailing();
+        }
+        boolean isQuery = READONLY_SQL_PREFIXES.stream().anyMatch(normalized::startsWith);
+        try {
+            if (isQuery) {
+                int limit = Math.min(Math.max(maxRows, 1), MAX_QUERY_ROWS);
+                List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(sql, safeParams);
+                List<Map<String, Object>> limited = rows.size() > limit ? rows.subList(0, limit) : rows;
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("total", rows.size());
+                result.put("returned", limited.size());
+                result.put("rows", limited);
+                return objectMapper.writeValueAsString(result);
+            } else {
+                int affected = namedParameterJdbcTemplate.update(sql, safeParams);
+                return "SQL 执行完成，影响行数：" + affected;
+            }
+        } catch (Exception e) {
+            throw new BizException("SQL 执行失败：" + e.getMessage());
+        }
+    }
+
     public String executeReadOnlySql(String sql, Map<String, Object> params, int maxRows) {
         validateReadOnlySql(sql);
         int limit = Math.min(Math.max(maxRows, 1), MAX_QUERY_ROWS);

@@ -17,10 +17,19 @@ public class AiAssistantSettingService {
     public static final String READONLY_SQL_PERMISSION_CODE = "ai.readonly-sql.permission-code";
     public static final String READONLY_SQL_MAX_ROWS = "ai.readonly-sql.max-rows";
 
+    public static final String EXECUTE_SQL_ENABLED = "ai.execute-sql.enabled";
+    public static final String EXECUTE_SQL_PERMISSION_CODE = "ai.execute-sql.permission-code";
+    public static final String EXECUTE_SQL_MAX_ROWS = "ai.execute-sql.max-rows";
+
     private static final boolean DEFAULT_READONLY_SQL_ENABLED = true;
     private static final String DEFAULT_READONLY_SQL_PERMISSION_CODE = "ai:sql:readonly";
     private static final int DEFAULT_READONLY_SQL_MAX_ROWS = 100;
     private static final int MAX_READONLY_SQL_ROWS = 100;
+
+    private static final boolean DEFAULT_EXECUTE_SQL_ENABLED = false;
+    private static final String DEFAULT_EXECUTE_SQL_PERMISSION_CODE = "ai:sql:execute";
+    private static final int DEFAULT_EXECUTE_SQL_MAX_ROWS = 100;
+    private static final int MAX_EXECUTE_SQL_ROWS = 500;
 
     private final SysConfigService sysConfigService;
 
@@ -36,6 +45,20 @@ public class AiAssistantSettingService {
     public int getReadonlySqlMaxRows() {
         int value = getInt(READONLY_SQL_MAX_ROWS, DEFAULT_READONLY_SQL_MAX_ROWS);
         return Math.min(Math.max(value, 1), MAX_READONLY_SQL_ROWS);
+    }
+
+    public boolean isExecuteSqlEnabled() {
+        return getBoolean(EXECUTE_SQL_ENABLED, DEFAULT_EXECUTE_SQL_ENABLED);
+    }
+
+    public String getExecuteSqlPermissionCode() {
+        String value = sysConfigService.getValue(EXECUTE_SQL_PERMISSION_CODE);
+        return StringUtils.hasText(value) ? value.trim() : DEFAULT_EXECUTE_SQL_PERMISSION_CODE;
+    }
+
+    public int getExecuteSqlMaxRows() {
+        int value = getInt(EXECUTE_SQL_MAX_ROWS, DEFAULT_EXECUTE_SQL_MAX_ROWS);
+        return Math.min(Math.max(value, 1), MAX_EXECUTE_SQL_ROWS);
     }
 
     private boolean getBoolean(String key, boolean defaultValue) {

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -17,6 +18,7 @@ import cc.oofo.ai.agent.dto.AiChatRequest;
 import cc.oofo.ai.agent.dto.AiChatSessionDto;
 import cc.oofo.ai.agent.service.AiAgentChatService;
 import cc.oofo.ai.agent.service.AiChatHistoryService;
+import cc.oofo.ai.agent.service.AiToolConfirmationService;
 import cc.oofo.framework.web.response.Rs;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class AiAgentController {
 
     private final AiAgentChatService chatService;
     private final AiChatHistoryService historyService;
+    private final AiToolConfirmationService confirmationService;
 
     /**
      * AI 对话流式接口。前端通过 fetch POST 消费 text/event-stream。
@@ -71,6 +74,20 @@ public class AiAgentController {
     @DeleteMapping("/sessions/{sessionId}")
     public Rs<Void> deleteSession(@PathVariable String sessionId) {
         historyService.deleteSession(sessionId, StpUtil.getLoginIdAsString());
+        return Rs.ok();
+    }
+
+    /**
+     * 用户确认或取消待执行的 SQL 工具调用。
+     * 前端收到 tool_pending 事件后展示确认框，用户操作后调用此接口唤醒阻塞的工具线程。
+     */
+    @PostMapping("/confirm/{token}")
+    public Rs<String> confirm(@PathVariable String token,
+            @RequestParam(defaultValue = "true") boolean confirmed) {
+        boolean found = confirmationService.respond(token, confirmed);
+        if (!found) {
+            return Rs.error("确认令牌不存在或已超时");
+        }
         return Rs.ok();
     }
 }

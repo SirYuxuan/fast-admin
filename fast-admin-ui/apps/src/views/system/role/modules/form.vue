@@ -14,7 +14,7 @@ import { Spin } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
 import { getMenuList } from '#/api/system/menu';
-import { createRole, updateRole } from '#/api/system/role';
+import { createRole, getRoleById, updateRole } from '#/api/system/role';
 
 import { useFormSchema } from '../data';
 
@@ -29,6 +29,7 @@ const [Form, formApi] = useVbenForm({
 
 const permissions = ref<DataNode[]>([]);
 const loadingPermissions = ref(false);
+const loadingRole = ref(false);
 
 const id = ref();
 const [Modal, modalApi] = useVbenModal({
@@ -51,25 +52,37 @@ const [Modal, modalApi] = useVbenModal({
     if (isOpen) {
       const data = modalApi.getData<SystemRoleApi.SystemRole>();
       formApi.resetForm();
+      formData.value = data;
 
-      if (data) {
-        formData.value = data;
+      if (data?.id) {
         id.value = data.id;
       } else {
         id.value = undefined;
       }
 
-      if (permissions.value.length === 0) {
-        await loadPermissions();
-      }
+      const permissionTask =
+        permissions.value.length === 0 ? loadPermissions() : Promise.resolve();
+      const roleTask = id.value ? loadRoleDetail(id.value) : Promise.resolve(data);
+
+      const [, roleDetail] = await Promise.all([permissionTask, roleTask]);
       // Wait for Vue to flush DOM updates (form fields mounted)
       await nextTick();
-      if (data) {
-        formApi.setValues(data);
+      if (roleDetail) {
+        formData.value = roleDetail;
+        formApi.setValues(roleDetail);
       }
     }
   },
 });
+
+async function loadRoleDetail(roleId: string) {
+  loadingRole.value = true;
+  try {
+    return await getRoleById(roleId);
+  } finally {
+    loadingRole.value = false;
+  }
+}
 
 async function loadPermissions() {
   loadingPermissions.value = true;
@@ -96,30 +109,32 @@ function getNodeClass(node: Recordable<any>) {
 </script>
 <template>
   <Modal :title="getModalTitle">
-    <Form>
-      <template #permissions="slotProps">
-        <Spin :spinning="loadingPermissions" wrapper-class-name="w-full">
-          <Tree
-            :tree-data="permissions"
-            multiple
-            bordered
-            :default-expanded-level="2"
-            :get-node-class="getNodeClass"
-            v-bind="slotProps"
-            value-field="id"
-            label-field="meta.title"
-            icon-field="meta.icon"
-            :propagate-select="false"
-            :bubble-select="false"
-          >
-            <template #node="{ value }">
-              <IconifyIcon v-if="value.meta.icon" :icon="value.meta.icon" />
-              {{ value.meta.title }}
-            </template>
-          </Tree>
-        </Spin>
-      </template>
-    </Form>
+    <Spin :spinning="loadingRole" wrapper-class-name="w-full">
+      <Form>
+        <template #permissions="slotProps">
+          <Spin :spinning="loadingPermissions" wrapper-class-name="w-full">
+            <Tree
+              :tree-data="permissions"
+              multiple
+              bordered
+              :default-expanded-level="2"
+              :get-node-class="getNodeClass"
+              v-bind="slotProps"
+              value-field="id"
+              label-field="meta.title"
+              icon-field="meta.icon"
+              :propagate-select="false"
+              :bubble-select="false"
+            >
+              <template #node="{ value }">
+                <IconifyIcon v-if="value.meta.icon" :icon="value.meta.icon" />
+                {{ value.meta.title }}
+              </template>
+            </Tree>
+          </Spin>
+        </template>
+      </Form>
+    </Spin>
   </Modal>
 </template>
 <style lang="css" scoped>
