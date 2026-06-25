@@ -45,6 +45,7 @@ public class AiAgentController {
         String userId = StpUtil.getLoginIdAsString();
         List<AiChatSessionDto> list = historyService.listSessions(userId).stream()
                 .map(s -> new AiChatSessionDto(s.getSessionId(), s.getTitle(),
+                        s.getCreatedAt() == null ? null : s.getCreatedAt().toString(),
                         s.getUpdatedAt() == null ? null : s.getUpdatedAt().toString()))
                 .toList();
         return Rs.ok(list);
@@ -57,7 +58,8 @@ public class AiAgentController {
     public Rs<List<AiChatMessageDto>> messages(@PathVariable String sessionId) {
         String userId = StpUtil.getLoginIdAsString();
         List<AiChatMessageDto> list = historyService.listMessages(sessionId, userId).stream()
-                .map(m -> new AiChatMessageDto(m.getRole(), m.getContent(),
+                .map(m -> new AiChatMessageDto(m.getRole(), m.getContent(), m.getProcessJson(),
+                        m.getModelName(), m.getModelProvider(), m.getModelCode(),
                         m.getCreatedAt() == null ? null : m.getCreatedAt().toString()))
                 .toList();
         return Rs.ok(list);

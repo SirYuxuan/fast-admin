@@ -1,6 +1,8 @@
 import { useAppConfig } from '@vben/hooks';
 import { useAccessStore } from '@vben/stores';
 
+import { requestClient } from '#/api/request';
+
 export namespace AiAgentApi {
   export interface ChatRequest {
     message: string;
@@ -8,15 +10,56 @@ export namespace AiAgentApi {
   }
 
   export interface ChatEvent {
+    args?: string;
+    costMs?: number;
     message?: string;
     messageId?: string;
+    modelCode?: string;
+    modelName?: string;
+    modelProvider?: string;
+    ok?: boolean;
+    phase?: 'end' | 'start';
     sessionId?: string;
+    source?: 'builtin' | 'mcp' | string;
     text?: string;
-    type: 'delta' | 'done' | 'error' | 'session';
+    toolName?: string;
+    type: 'delta' | 'done' | 'error' | 'session' | 'thought' | 'tool';
+  }
+
+  export interface ChatMessage {
+    content: string;
+    createdAt?: string;
+    modelCode?: string;
+    modelName?: string;
+    modelProvider?: string;
+    processJson?: string;
+    role: 'assistant' | 'user';
+  }
+
+  export interface ChatSession {
+    createdAt?: string;
+    sessionId: string;
+    title: string;
+    updatedAt?: string;
   }
 }
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+const Url = '/ai/agent';
+
+export function getAiAgentSessions() {
+  return requestClient.get<AiAgentApi.ChatSession[]>(`${Url}/sessions`);
+}
+
+export function getAiAgentSessionMessages(sessionId: string) {
+  return requestClient.get<AiAgentApi.ChatMessage[]>(
+    `${Url}/sessions/${sessionId}/messages`,
+  );
+}
+
+export function deleteAiAgentSession(sessionId: string) {
+  return requestClient.delete(`${Url}/sessions/${sessionId}`);
+}
 
 function resolveApiUrl(path: string) {
   return `${apiURL.replace(/\/$/, '')}${path}`;
@@ -45,7 +88,7 @@ export async function streamAiAgentChat(
   signal?: AbortSignal,
 ) {
   const accessStore = useAccessStore();
-  const response = await fetch(resolveApiUrl('/ai/agent/chat'), {
+  const response = await fetch(resolveApiUrl(`${Url}/chat`), {
     body: JSON.stringify(data),
     headers: {
       'Accept': 'text/event-stream',

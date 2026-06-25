@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS `ai_tool_config` (
   `type` varchar(16) NOT NULL COMMENT '工具类型：sql/http',
   `description` varchar(512) NOT NULL COMMENT '工具说明，供模型判断调用时机',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
+  `system_builtin` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否系统内置工具',
   `permission_code` varchar(64) DEFAULT NULL COMMENT '调用所需权限码，空表示登录用户均可调用',
   `method` varchar(16) DEFAULT NULL COMMENT 'HTTP 方法',
   `url` varchar(512) DEFAULT NULL COMMENT 'HTTP 地址模板，支持 {{param}} 占位',
@@ -77,6 +78,98 @@ CREATE TABLE IF NOT EXISTS `ai_tool_config` (
   UNIQUE KEY `uk_ai_tool_code` (`tool_code`,`is_deleted`),
   KEY `idx_ai_tool_enabled` (`enabled`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 工具配置';
+
+SET @ai_tool_system_builtin_sql := IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND TABLE_NAME = 'ai_tool_config'
+     AND COLUMN_NAME = 'system_builtin') = 0,
+  'ALTER TABLE `ai_tool_config` ADD COLUMN `system_builtin` tinyint(1) NOT NULL DEFAULT 0 COMMENT ''是否系统内置工具'' AFTER `enabled`',
+  'SELECT 1'
+);
+PREPARE ai_tool_system_builtin_stmt FROM @ai_tool_system_builtin_sql;
+EXECUTE ai_tool_system_builtin_stmt;
+DEALLOCATE PREPARE ai_tool_system_builtin_stmt;
+
+SET @ai_chat_message_model_name_sql := IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND TABLE_NAME = 'ai_chat_message'
+     AND COLUMN_NAME = 'model_name') = 0,
+  'ALTER TABLE `ai_chat_message` ADD COLUMN `model_name` varchar(128) DEFAULT NULL COMMENT ''助手消息使用的模型配置名称'' AFTER `process_json`',
+  'SELECT 1'
+);
+PREPARE ai_chat_message_model_name_stmt FROM @ai_chat_message_model_name_sql;
+EXECUTE ai_chat_message_model_name_stmt;
+DEALLOCATE PREPARE ai_chat_message_model_name_stmt;
+
+SET @ai_chat_message_model_provider_sql := IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND TABLE_NAME = 'ai_chat_message'
+     AND COLUMN_NAME = 'model_provider') = 0,
+  'ALTER TABLE `ai_chat_message` ADD COLUMN `model_provider` varchar(32) DEFAULT NULL COMMENT ''助手消息使用的模型提供方'' AFTER `model_name`',
+  'SELECT 1'
+);
+PREPARE ai_chat_message_model_provider_stmt FROM @ai_chat_message_model_provider_sql;
+EXECUTE ai_chat_message_model_provider_stmt;
+DEALLOCATE PREPARE ai_chat_message_model_provider_stmt;
+
+SET @ai_chat_message_model_code_sql := IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = DATABASE()
+     AND TABLE_NAME = 'ai_chat_message'
+     AND COLUMN_NAME = 'model_code') = 0,
+  'ALTER TABLE `ai_chat_message` ADD COLUMN `model_code` varchar(128) DEFAULT NULL COMMENT ''助手消息使用的模型编码'' AFTER `model_provider`',
+  'SELECT 1'
+);
+PREPARE ai_chat_message_model_code_stmt FROM @ai_chat_message_model_code_sql;
+EXECUTE ai_chat_message_model_code_stmt;
+DEALLOCATE PREPARE ai_chat_message_model_code_stmt;
+
+INSERT INTO `ai_tool_config`
+(`id`, `name`, `tool_code`, `type`, `description`, `enabled`, `system_builtin`, `permission_code`,
+ `method`, `url`, `headers_json`, `body_template`, `sql_text`, `read_only`, `timeout_ms`, `remark`,
+ `created_by`, `created_at`, `updated_by`, `updated_at`, `is_deleted`)
+VALUES
+('builtin_execute_readonly_sql', '执行只读 SQL', 'execute_readonly_sql', 'sql',
+ '系统内置工具：执行单条只读 SQL，返回 JSON 结果。仅允许 select/show/desc/describe/explain。',
+ 1, 1, 'ai:sql:readonly',
+ NULL, NULL, NULL, NULL, NULL, 1, 10000, '系统内置，配置项来自系统参数表',
+ 'system', NOW(), 'system', NOW(), 0)
+ON DUPLICATE KEY UPDATE
+  `name` = VALUES(`name`),
+  `type` = VALUES(`type`),
+  `description` = VALUES(`description`),
+  `system_builtin` = 1,
+  `permission_code` = VALUES(`permission_code`),
+  `read_only` = VALUES(`read_only`),
+  `timeout_ms` = VALUES(`timeout_ms`),
+  `remark` = VALUES(`remark`),
+  `updated_by` = VALUES(`updated_by`),
+  `updated_at` = VALUES(`updated_at`),
+  `is_deleted` = 0;
+
+INSERT INTO `sys_config`
+(`id`, `config_name`, `config_key`, `config_value`, `config_type`, `remark`,
+ `created_by`, `created_at`, `updated_by`, `updated_at`, `is_deleted`)
+VALUES
+('ai_readonly_sql_enabled', 'AI只读SQL工具开关', 'ai.readonly-sql.enabled', 'true', 1,
+ '控制内置 execute_readonly_sql 工具是否注册给模型',
+ 'system', NOW(), 'system', NOW(), 0),
+('ai_readonly_sql_perm', 'AI只读SQL工具权限码', 'ai.readonly-sql.permission-code', 'ai:sql:readonly', 1,
+ '调用内置 execute_readonly_sql 工具需要的权限码',
+ 'system', NOW(), 'system', NOW(), 0),
+('ai_readonly_sql_max_rows', 'AI只读SQL最大返回行数', 'ai.readonly-sql.max-rows', '100', 1,
+ '内置 execute_readonly_sql 工具单次最多返回行数，代码层最大 100',
+ 'system', NOW(), 'system', NOW(), 0)
+ON DUPLICATE KEY UPDATE
+  `config_name` = VALUES(`config_name`),
+  `config_type` = VALUES(`config_type`),
+  `remark` = VALUES(`remark`),
+  `updated_by` = VALUES(`updated_by`),
+  `updated_at` = VALUES(`updated_at`),
+  `is_deleted` = 0;
 
 INSERT INTO `sys_menu`
 (`id`, `pid`, `name`, `code`, `type`, `status`, `path`, `active_path`, `component`, `icon`,
@@ -137,6 +230,10 @@ VALUES
  NULL, '编辑', 1, 0, 0, 0, 0, 0, 0,
  NULL, NULL, NULL, NULL, NULL, NULL,
  'system', NOW(), 'system', NOW(), NULL, NULL, 0),
+('ai_sql_readonly', 'ai_tool', 'AiSqlReadonly', 'ai:sql:readonly', 3, 1, NULL, NULL, NULL, NULL,
+ NULL, 'AI只读SQL', 10, 0, 0, 0, 0, 0, 0,
+ NULL, NULL, NULL, NULL, NULL, '允许 AI 调用内置只读 SQL 工具',
+ 'system', NOW(), 'system', NOW(), NULL, NULL, 0),
 ('ai_tool_del', 'ai_tool', 'AiToolDelete', 'ai:tool:delete', 3, 1, NULL, NULL, NULL, NULL,
  NULL, '删除', 2, 0, 0, 0, 0, 0, 0,
  NULL, NULL, NULL, NULL, NULL, NULL,
@@ -173,6 +270,7 @@ JOIN `sys_menu` m ON m.`id` IN (
   'ai_tool',
   'ai_tool_add',
   'ai_tool_edit',
+  'ai_sql_readonly',
   'ai_tool_del'
 )
 WHERE r.`code` = 'System' AND r.`is_deleted` = 0;

@@ -26,6 +26,7 @@
     "#/*": "./src/*"
   },
   "dependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@vben-core/menu-ui": "workspace:*",
     "@vben/access": "workspace:*",
     "@vben/common-ui": "workspace:*",
@@ -43,7 +44,9 @@
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
+    "ant-design-x-vue": "1.6.0",
     "dayjs": "catalog:",
+    "markdown-it": "^14.2.0",
     "pinia": "catalog:",
     "vue": "catalog:",
     "vue-advanced-cropper": "catalog:",

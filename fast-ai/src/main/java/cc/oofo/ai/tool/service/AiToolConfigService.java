@@ -9,10 +9,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import cc.oofo.ai.config.AiAssistantSettingService;
 import cc.oofo.ai.tool.dto.AiToolConfigSaveDto;
 import cc.oofo.ai.tool.entity.AiToolConfig;
 import cc.oofo.ai.tool.entity.query.AiToolConfigQuery;
@@ -29,12 +31,15 @@ import lombok.RequiredArgsConstructor;
 public class AiToolConfigService extends BaseService<AiToolConfig> {
 
     private static final Pattern TOOL_CODE_PATTERN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]{1,63}$");
+    private static final String READONLY_SQL_TOOL_CODE = "execute_readonly_sql";
     private static final Set<String> TYPES = Set.of("sql", "http");
     private static final Set<String> HTTP_METHODS = Set.of("GET", "POST", "PUT", "PATCH", "DELETE");
 
+    private final AiAssistantSettingService settingService;
     private final ObjectMapper objectMapper;
 
     public Page<AiToolConfig> page(AiToolConfigQuery query) {
+        syncReadonlySqlTool();
         query.getQueryWrapper().orderByDesc("enabled").orderByDesc("created_at");
         return page(query.getMPPage(), query.getQueryWrapper());
     }
@@ -48,11 +53,15 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
         AiToolConfig entity = new AiToolConfig();
         copyToEntity(dto, entity);
         entity.setEnabled(dto.getEnabled() == null || dto.getEnabled());
+        entity.setSystemBuiltin(false);
         save(entity);
     }
 
     public void update(AiToolConfigSaveDto dto) {
         AiToolConfig entity = getByIdOrThrow(dto.getId());
+        if (Boolean.TRUE.equals(entity.getSystemBuiltin())) {
+            throw new BizException("系统内置工具不允许编辑");
+        }
         validate(dto, entity.getId());
         if (toolCodeExists(entity.getId(), dto.getToolCode())) {
             throw new BizException("工具编码已存在");
@@ -63,7 +72,10 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
     }
 
     public void del(String id) {
-        getByIdOrThrow(id);
+        AiToolConfig entity = getByIdOrThrow(id);
+        if (Boolean.TRUE.equals(entity.getSystemBuiltin())) {
+            throw new BizException("系统内置工具不允许删除");
+        }
         removeById(id);
     }
 
@@ -79,13 +91,23 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
         return getOne(new LambdaQueryWrapper<AiToolConfig>()
                 .eq(AiToolConfig::getToolCode, toolCode)
                 .eq(AiToolConfig::getEnabled, true)
+                .eq(AiToolConfig::getSystemBuiltin, false)
                 .last("limit 1"));
     }
 
     public List<AiToolConfig> listEnabled() {
         return list(new LambdaQueryWrapper<AiToolConfig>()
                 .eq(AiToolConfig::getEnabled, true)
+                .eq(AiToolConfig::getSystemBuiltin, false)
                 .orderByAsc(AiToolConfig::getToolCode));
+    }
+
+    private void syncReadonlySqlTool() {
+        update(new LambdaUpdateWrapper<AiToolConfig>()
+                .eq(AiToolConfig::getToolCode, READONLY_SQL_TOOL_CODE)
+                .eq(AiToolConfig::getSystemBuiltin, true)
+                .set(AiToolConfig::getEnabled, settingService.isReadonlySqlEnabled())
+                .set(AiToolConfig::getPermissionCode, settingService.getReadonlySqlPermissionCode()));
     }
 
     private void validate(AiToolConfigSaveDto dto, String id) {

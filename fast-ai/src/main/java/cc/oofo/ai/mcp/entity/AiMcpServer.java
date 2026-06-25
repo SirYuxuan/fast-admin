@@ -1,6 +1,7 @@
 package cc.oofo.ai.mcp.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 
 import cc.oofo.framework.core.entity.BaseEntity;
 import lombok.Data;
@@ -39,4 +40,28 @@ public class AiMcpServer extends BaseEntity<AiMcpServer> {
 
     /** 备注。 */
     private String remark;
+
+    /** 当前运行时是否已连接。 */
+    @TableField(exist = false)
+    private Boolean connected;
+
+    /** 当前连接暴露的工具数量。 */
+    @TableField(exist = false)
+    private Integer toolCount;
+
+    /** 当前连接暴露的提示词数量。 */
+    @TableField(exist = false)
+    private Integer promptCount;
+
+    /** 当前连接暴露的资源数量。 */
+    @TableField(exist = false)
+    private Integer resourceCount;
+
+    /** 估算上下文占用 token 数。 */
+    @TableField(exist = false)
+    private Integer contextTokenCount;
+
+    /** 当前连接状态说明。 */
+    @TableField(exist = false)
+    private String statusMessage;
 }

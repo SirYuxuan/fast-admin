@@ -20,6 +20,7 @@ export namespace AiToolApi {
     readOnly?: boolean;
     timeoutMs?: number;
     remark?: string;
+    systemBuiltin?: boolean;
     createdAt?: string;
   }
 }

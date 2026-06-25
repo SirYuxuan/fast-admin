@@ -57,4 +57,7 @@ public class AiToolConfig extends BaseEntity<AiToolConfig> {
 
     /** 备注。 */
     private String remark;
+
+    /** 是否系统内置工具。 */
+    private Boolean systemBuiltin;
 }

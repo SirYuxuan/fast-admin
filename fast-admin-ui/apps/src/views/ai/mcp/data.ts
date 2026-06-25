@@ -15,6 +15,11 @@ const TRANSPORT_TAGS = [
   { label: 'Streamable HTTP', value: 'streamable-http', color: 'cyan' },
 ];
 
+const CONNECTION_TAGS = [
+  { label: '已连接', value: true, color: 'green' },
+  { label: '未连接', value: false, color: 'red' },
+];
+
 export function useGridFormSchema(): VbenFormSchema[] {
   return [
     { component: 'Input', fieldName: 'name', label: '服务名称' },
@@ -39,7 +44,9 @@ export function useGridFormSchema(): VbenFormSchema[] {
   ];
 }
 
-export function useFormSchema(): VbenFormSchema[] {
+export function useFormSchema(
+  onTransportChange?: (value: AiMcpApi.Transport) => void,
+): VbenFormSchema[] {
   return [
     {
       component: 'Input',
@@ -49,7 +56,11 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: { class: 'w-full', options: TRANSPORT_OPTIONS },
+      componentProps: {
+        class: 'w-full',
+        onChange: onTransportChange,
+        options: TRANSPORT_OPTIONS,
+      },
       fieldName: 'transport',
       label: '传输类型',
       rules: 'selectRequired',
@@ -78,20 +89,6 @@ export function useFormSchema(): VbenFormSchema[] {
       label: '服务地址',
     },
     {
-      component: 'Textarea',
-      componentProps: { rows: 3, placeholder: '例如 [\"--port\", \"3000\"]' },
-      fieldName: 'argsJson',
-      label: '命令参数',
-      help: 'stdio 模式使用，必须是 JSON 数组',
-    },
-    {
-      component: 'Textarea',
-      componentProps: { rows: 3, placeholder: '例如 {\"Authorization\":\"Bearer xxx\"}' },
-      fieldName: 'headersJson',
-      label: '请求头',
-      help: '远程 MCP 使用，必须是 JSON 对象',
-    },
-    {
       component: 'Switch',
       componentProps: { class: 'w-auto' },
       defaultValue: true,
@@ -118,8 +115,21 @@ export function useColumns<T = AiMcpApi.McpServer>(
       title: '传输类型',
       width: 150,
     },
-    { field: 'command', title: '启动命令', minWidth: 180, showOverflow: true },
-    { field: 'url', title: '服务地址', minWidth: 220, showOverflow: true },
+    {
+      cellRender: { name: 'CellTag', options: CONNECTION_TAGS },
+      field: 'connected',
+      title: '连接状态',
+      width: 100,
+    },
+    { field: 'toolCount', title: '工具数', width: 80 },
+    { field: 'promptCount', title: '提示词', width: 80 },
+    { field: 'resourceCount', title: '资源数', width: 80 },
+    {
+      field: 'contextTokenCount',
+      title: '上下文',
+      width: 90,
+      formatter: ({ cellValue }) => `${cellValue || 0} token`,
+    },
     {
       cellRender: {
         name: 'CellTag',
@@ -140,6 +150,14 @@ export function useColumns<T = AiMcpApi.McpServer>(
         attrs: { onClick: onActionClick },
         name: 'CellOperation',
         options: [
+          { code: 'detail', text: '详情' },
+          {
+            authCode: 'ai:mcp:edit',
+            code: 'reload',
+            disabled: (row: AiMcpApi.McpServer) => row.refreshing,
+            loading: (row: AiMcpApi.McpServer) => row.refreshing,
+            text: (row: AiMcpApi.McpServer) => row.refreshing ? '刷新中' : '刷新',
+          },
           { code: 'edit', authCode: 'ai:mcp:edit' },
           { code: 'delete', authCode: 'ai:mcp:delete' },
         ],
@@ -147,7 +165,7 @@ export function useColumns<T = AiMcpApi.McpServer>(
       field: 'operation',
       fixed: 'right',
       title: '操作',
-      width: 140,
+      width: 220,
     },
   ];
 }

@@ -24,12 +24,14 @@ import cc.oofo.ai.tool.service.AiToolCallbackService;
 import cc.oofo.ai.tool.service.AiToolExecutionService;
 import cc.oofo.framework.exception.BizException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 根据数据库当前模型、已启用工具和 MCP 服务器创建 ChatClient。
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AiChatClientFactory {
 
     private final AiModelConfigService modelConfigService;
@@ -54,15 +56,53 @@ public class AiChatClientFactory {
 
         List<String> safePermissions = permissionCodes == null ? List.of() : permissionCodes;
 
+        List<ToolCallback> builtinCallbacks = toolCallbackService.listEnabledCallbacks(sessionId, operatorId, eventSink);
+        List<ToolCallback> mcpCallbacks = mcpClientManager.listToolCallbacks(eventSink);
         List<ToolCallback> allCallbacks = new ArrayList<>();
-        allCallbacks.addAll(toolCallbackService.listEnabledCallbacks(sessionId, operatorId, eventSink));
-        allCallbacks.addAll(mcpClientManager.listToolCallbacks());
+        allCallbacks.addAll(builtinCallbacks);
+        allCallbacks.addAll(mcpCallbacks);
+        logToolCallbacks(builtinCallbacks, mcpCallbacks, eventSink);
 
         return builder
                 .defaultToolCallbacks(allCallbacks)
                 .defaultToolContext(Map.of(
                         AiToolExecutionService.TOOL_CONTEXT_PERMISSIONS, safePermissions))
                 .build();
+    }
+
+    private void logToolCallbacks(List<ToolCallback> builtinCallbacks, List<ToolCallback> mcpCallbacks,
+            Consumer<AiChatSseEvent> eventSink) {
+        List<String> builtinNames = toolNames(builtinCallbacks);
+        List<String> mcpNames = toolNames(mcpCallbacks);
+        log.info("AI chat tools mounted: builtin={} {}, mcp={} {}",
+                builtinNames.size(), builtinNames, mcpNames.size(), mcpNames);
+        if (eventSink != null) {
+            try {
+                eventSink.accept(AiChatSseEvent.thought(
+                        "已挂载工具：内置 " + builtinNames.size() + " 个，MCP " + mcpNames.size() + " 个"
+                                + previewToolNames(mcpNames)));
+            } catch (Exception ignored) {
+                log.debug("Failed to send mounted tool summary");
+            }
+        }
+    }
+
+    private List<String> toolNames(List<ToolCallback> callbacks) {
+        if (callbacks == null || callbacks.isEmpty()) {
+            return List.of();
+        }
+        return callbacks.stream()
+                .map(callback -> callback.getToolDefinition().name())
+                .toList();
+    }
+
+    private String previewToolNames(List<String> names) {
+        if (names == null || names.isEmpty()) {
+            return "";
+        }
+        int limit = Math.min(names.size(), 8);
+        String suffix = names.size() > limit ? " 等" : "";
+        return "（" + String.join("、", names.subList(0, limit)) + suffix + "）";
     }
 
     private ChatClient.Builder createBuilder() {

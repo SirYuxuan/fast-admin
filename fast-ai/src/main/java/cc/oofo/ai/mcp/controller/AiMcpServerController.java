@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
+import cc.oofo.ai.mcp.dto.AiMcpServerInspectDto;
 import cc.oofo.ai.mcp.dto.AiMcpServerSaveDto;
 import cc.oofo.ai.mcp.entity.AiMcpServer;
 import cc.oofo.ai.mcp.entity.query.AiMcpServerQuery;
@@ -33,18 +36,28 @@ public class AiMcpServerController {
 
     @GetMapping
     public Ps<AiMcpServer> page(AiMcpServerQuery query) {
-        return Ps.ok(service.page(query));
+        Page<AiMcpServer> page = service.page(query);
+        page.getRecords().forEach(mcpClientManager::applyStatus);
+        return Ps.ok(page);
     }
 
     @GetMapping("/{id}")
     public Rs<AiMcpServer> detail(@PathVariable String id) {
-        return Rs.ok(service.getByIdOrThrow(id));
+        AiMcpServer server = service.getByIdOrThrow(id);
+        mcpClientManager.applyStatus(server);
+        return Rs.ok(server);
+    }
+
+    @GetMapping("/{id}/inspect")
+    public Rs<AiMcpServerInspectDto> inspect(@PathVariable String id) {
+        return Rs.ok(mcpClientManager.inspect(id));
     }
 
     @PostMapping
     @OperationLog(title = "MCP 服务配置", type = BusinessType.CREATE)
     public Rs<Void> add(@RequestBody AiMcpServerSaveDto dto) {
-        service.add(dto);
+        AiMcpServer server = service.add(dto);
+        mcpClientManager.reload(server.getId());
         return Rs.ok();
     }
 
@@ -52,6 +65,7 @@ public class AiMcpServerController {
     @OperationLog(title = "MCP 服务配置", type = BusinessType.UPDATE)
     public Rs<Void> update(@RequestBody AiMcpServerSaveDto dto) {
         service.update(dto);
+        mcpClientManager.reload(dto.getId());
         return Rs.ok();
     }
 
@@ -59,16 +73,17 @@ public class AiMcpServerController {
     @OperationLog(title = "MCP 服务配置", type = BusinessType.DELETE)
     public Rs<Void> del(@PathVariable String id) {
         service.del(id);
+        mcpClientManager.remove(id);
         return Rs.ok();
     }
 
     /**
-     * 重新加载所有已启用的 MCP 服务器连接（关闭旧连接后重建）。
+     * 只重新加载单个 MCP 服务连接。
      */
-    @PostMapping("/reload")
+    @PostMapping("/{id}/reload")
     @OperationLog(title = "MCP 服务配置", type = BusinessType.UPDATE)
-    public Rs<Void> reload() {
-        mcpClientManager.reload();
+    public Rs<Void> reloadOne(@PathVariable String id) {
+        mcpClientManager.reload(id);
         return Rs.ok();
     }
 }

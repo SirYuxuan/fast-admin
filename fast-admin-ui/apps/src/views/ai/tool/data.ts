@@ -13,6 +13,11 @@ const TOOL_TYPE_TAGS = [
   { label: 'HTTP', value: 'http', color: 'cyan' },
 ];
 
+const TOOL_SOURCE_TAGS = [
+  { label: '系统内置', value: true, color: 'purple' },
+  { label: '自定义', value: false, color: 'default' },
+];
+
 const HTTP_METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((value) => ({
   label: value,
   value,
@@ -177,6 +182,12 @@ export function useColumns<T = AiToolApi.ToolConfig>(
     { field: 'name', title: '工具名称', minWidth: 150 },
     { field: 'toolCode', title: '工具编码', minWidth: 160 },
     {
+      cellRender: { name: 'CellTag', options: TOOL_SOURCE_TAGS },
+      field: 'systemBuiltin',
+      title: '来源',
+      width: 100,
+    },
+    {
       cellRender: { name: 'CellTag', options: TOOL_TYPE_TAGS },
       field: 'type',
       title: '类型',
@@ -203,8 +214,16 @@ export function useColumns<T = AiToolApi.ToolConfig>(
         attrs: { onClick: onActionClick },
         name: 'CellOperation',
         options: [
-          { code: 'edit', authCode: 'ai:tool:edit' },
-          { code: 'delete', authCode: 'ai:tool:delete' },
+          {
+            code: 'edit',
+            authCode: 'ai:tool:edit',
+            disabled: (row: AiToolApi.ToolConfig) => row.systemBuiltin,
+          },
+          {
+            code: 'delete',
+            authCode: 'ai:tool:delete',
+            disabled: (row: AiToolApi.ToolConfig) => row.systemBuiltin,
+          },
         ],
       },
       field: 'operation',

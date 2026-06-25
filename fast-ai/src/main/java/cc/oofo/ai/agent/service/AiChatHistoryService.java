@@ -77,6 +77,15 @@ public class AiChatHistoryService {
     }
 
     public void saveMessage(String sessionId, String role, String content) {
+        saveMessage(sessionId, role, content, null);
+    }
+
+    public void saveMessage(String sessionId, String role, String content, String processJson) {
+        saveMessage(sessionId, role, content, processJson, null, null, null);
+    }
+
+    public void saveMessage(String sessionId, String role, String content, String processJson,
+            String modelName, String modelProvider, String modelCode) {
         if (!StringUtils.hasText(sessionId) || !StringUtils.hasText(content)) {
             return;
         }
@@ -84,6 +93,10 @@ public class AiChatHistoryService {
         message.setSessionId(sessionId);
         message.setRole(role);
         message.setContent(content);
+        message.setProcessJson(processJson);
+        message.setModelName(modelName);
+        message.setModelProvider(modelProvider);
+        message.setModelCode(modelCode);
         messageMapper.insert(message);
     }
 
@@ -93,6 +106,15 @@ public class AiChatHistoryService {
 
     public void saveAssistantMessage(String sessionId, String content) {
         saveMessage(sessionId, ROLE_ASSISTANT, content);
+    }
+
+    public void saveAssistantMessage(String sessionId, String content, String processJson) {
+        saveMessage(sessionId, ROLE_ASSISTANT, content, processJson);
+    }
+
+    public void saveAssistantMessage(String sessionId, String content, String processJson,
+            String modelName, String modelProvider, String modelCode) {
+        saveMessage(sessionId, ROLE_ASSISTANT, content, processJson, modelName, modelProvider, modelCode);
     }
 
     @Transactional(readOnly = true)

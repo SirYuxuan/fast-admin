@@ -1,5 +1,6 @@
 package cc.oofo.ai.tool.service;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import cc.oofo.ai.agent.dto.AiChatSseEvent;
 import cc.oofo.ai.agent.entity.AiToolCallLog;
 import cc.oofo.ai.agent.mapper.AiToolCallLogMapper;
+import cc.oofo.ai.config.AiAssistantSettingService;
 import cc.oofo.ai.tool.entity.AiToolConfig;
+import cc.oofo.framework.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,8 +36,21 @@ public class AiToolCallbackService {
     private static final String INPUT_SCHEMA = """
             {"type":"object","additionalProperties":true}
             """;
+    private static final String READONLY_SQL_TOOL_CODE = "execute_readonly_sql";
+    private static final String READONLY_SQL_INPUT_SCHEMA = """
+            {
+              "type":"object",
+              "additionalProperties":false,
+              "required":["sql"],
+              "properties":{
+                "sql":{"type":"string","description":"只读 SQL，只允许 select/show/desc/describe/explain，使用 :param 命名参数"},
+                "params":{"type":"object","description":"SQL 命名参数，例如 {\\\"userId\\\":\\\"1\\\"}"}
+              }
+            }
+            """;
     private static final int RESULT_MAX_CHARS = 4000;
 
+    private final AiAssistantSettingService settingService;
     private final AiToolConfigService toolConfigService;
     private final AiToolExecutionService toolExecutionService;
     private final AiToolCallLogMapper toolCallLogMapper;
@@ -49,9 +65,13 @@ public class AiToolCallbackService {
      */
     public List<ToolCallback> listEnabledCallbacks(String sessionId, String operatorId,
             Consumer<AiChatSseEvent> eventSink) {
-        return toolConfigService.listEnabled().stream()
+        List<ToolCallback> callbacks = new ArrayList<>(toolConfigService.listEnabled().stream()
                 .map(tool -> toCallback(tool, sessionId, operatorId, eventSink))
-                .toList();
+                .toList());
+        if (settingService.isReadonlySqlEnabled()) {
+            callbacks.add(readonlySqlCallback(sessionId, operatorId, eventSink));
+        }
+        return callbacks;
     }
 
     private ToolCallback toCallback(AiToolConfig tool, String sessionId, String operatorId,
@@ -65,13 +85,13 @@ public class AiToolCallbackService {
                         String result = toolExecutionService.execute(
                                 tool.getToolCode(), input, getPermissionCodes(context));
                         long cost = System.currentTimeMillis() - start;
-                        notify(eventSink, AiChatSseEvent.toolEnd(tool.getToolCode(), true));
+                        notify(eventSink, AiChatSseEvent.toolEnd(tool.getToolCode(), "builtin", true, cost));
                         writeAuditLog(sessionId, operatorId, tool.getToolCode(),
                                 argsJson, truncate(result), true, null, cost);
                         return result;
                     } catch (Exception e) {
                         long cost = System.currentTimeMillis() - start;
-                        notify(eventSink, AiChatSseEvent.toolEnd(tool.getToolCode(), false));
+                        notify(eventSink, AiChatSseEvent.toolEnd(tool.getToolCode(), "builtin", false, cost));
                         writeAuditLog(sessionId, operatorId, tool.getToolCode(),
                                 argsJson, null, false, e.getMessage(), cost);
                         throw e;
@@ -82,6 +102,72 @@ public class AiToolCallbackService {
                 .inputType(new ParameterizedTypeReference<Map<String, Object>>() {
                 })
                 .build();
+    }
+
+    private ToolCallback readonlySqlCallback(String sessionId, String operatorId,
+            Consumer<AiChatSseEvent> eventSink) {
+        return FunctionToolCallback
+                .builder(READONLY_SQL_TOOL_CODE, (Map<String, Object> input, ToolContext context) -> {
+                    String argsJson = toJson(input);
+                    notify(eventSink, AiChatSseEvent.toolStart(READONLY_SQL_TOOL_CODE, argsJson));
+                    long start = System.currentTimeMillis();
+                    try {
+                        checkReadonlySqlPermission(getPermissionCodes(context));
+                        String result = toolExecutionService.executeReadOnlySql(
+                                getRequiredString(input, "sql"),
+                                getParams(input),
+                                settingService.getReadonlySqlMaxRows());
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(READONLY_SQL_TOOL_CODE, "builtin", true, cost));
+                        writeAuditLog(sessionId, operatorId, READONLY_SQL_TOOL_CODE,
+                                argsJson, truncate(result), true, null, cost);
+                        return result;
+                    } catch (Exception e) {
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(READONLY_SQL_TOOL_CODE, "builtin", false, cost));
+                        writeAuditLog(sessionId, operatorId, READONLY_SQL_TOOL_CODE,
+                                argsJson, null, false, e.getMessage(), cost);
+                        throw e;
+                    }
+                })
+                .description("""
+                        执行一条只读 SQL 并返回 JSON 结果。仅用于查询 Fast Admin 数据库事实。
+                        只允许单条 select/show/desc/describe/explain 语句；需要参数时使用 :param 命名参数并放入 params 对象。
+                        """)
+                .inputSchema(READONLY_SQL_INPUT_SCHEMA)
+                .inputType(new ParameterizedTypeReference<Map<String, Object>>() {
+                })
+                .build();
+    }
+
+    private void checkReadonlySqlPermission(Collection<String> permissionCodes) {
+        String permissionCode = settingService.getReadonlySqlPermissionCode();
+        if (!StringUtils.hasText(permissionCode)) {
+            return;
+        }
+        if (permissionCodes == null || !permissionCodes.contains(permissionCode)) {
+            throw new BizException("无权调用 AI 只读 SQL 工具");
+        }
+    }
+
+    private String getRequiredString(Map<String, Object> input, String key) {
+        Object value = input == null ? null : input.get(key);
+        if (!(value instanceof String text) || !StringUtils.hasText(text)) {
+            throw new BizException("缺少参数：" + key);
+        }
+        return text;
+    }
+
+    private Map<String, Object> getParams(Map<String, Object> input) {
+        if (input == null || input.get("params") == null) {
+            return Map.of();
+        }
+        Object value = input.get("params");
+        if (!(value instanceof Map<?, ?>)) {
+            throw new BizException("params 必须是 JSON 对象");
+        }
+        return objectMapper.convertValue(value, new com.fasterxml.jackson.core.type.TypeReference<>() {
+        });
     }
 
     private void notify(Consumer<AiChatSseEvent> eventSink, AiChatSseEvent event) {

@@ -37,6 +37,8 @@ public class AiToolExecutionService {
     private static final int MAX_QUERY_ROWS = 100;
     private static final int MAX_HTTP_BODY_CHARS = 8000;
     private static final Pattern TEMPLATE_PARAM = Pattern.compile("\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*}}");
+    private static final List<String> READONLY_SQL_PREFIXES = List.of(
+            "select ", "show ", "desc ", "describe ", "explain ");
 
     private final AiToolConfigService toolConfigService;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -54,6 +56,24 @@ public class AiToolExecutionService {
             return executeSql(tool, safeArgs);
         }
         return executeHttp(tool, safeArgs);
+    }
+
+    public String executeReadOnlySql(String sql, Map<String, Object> params, int maxRows) {
+        validateReadOnlySql(sql);
+        int limit = Math.min(Math.max(maxRows, 1), MAX_QUERY_ROWS);
+        Map<String, Object> safeParams = params == null ? Map.of() : new LinkedHashMap<>(params);
+
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(sql, safeParams);
+        List<Map<String, Object>> limited = rows.size() > limit ? rows.subList(0, limit) : rows;
+        try {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("total", rows.size());
+            result.put("returned", limited.size());
+            result.put("rows", limited);
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            throw new BizException("SQL 查询结果序列化失败");
+        }
     }
 
     private void checkPermission(AiToolConfig tool, Collection<String> permissionCodes) {
@@ -81,6 +101,36 @@ public class AiToolExecutionService {
         } catch (Exception e) {
             throw new BizException("SQL 查询结果序列化失败");
         }
+    }
+
+    private void validateReadOnlySql(String sql) {
+        if (!StringUtils.hasText(sql)) {
+            throw new BizException("SQL 不能为空");
+        }
+        String normalized = sql.strip();
+        if (normalized.contains("--") || normalized.contains("#") || normalized.contains("/*")) {
+            throw new BizException("只读 SQL 不允许包含注释");
+        }
+        if (hasMultipleStatements(normalized)) {
+            throw new BizException("只读 SQL 只允许单条语句");
+        }
+
+        String lower = normalized.toLowerCase();
+        if (lower.endsWith(";")) {
+            lower = lower.substring(0, lower.length() - 1).stripTrailing();
+        }
+        boolean readOnly = READONLY_SQL_PREFIXES.stream().anyMatch(lower::startsWith);
+        if (!readOnly) {
+            throw new BizException("只读 SQL 仅允许 select/show/desc/describe/explain");
+        }
+    }
+
+    private boolean hasMultipleStatements(String sql) {
+        String normalized = sql.trim();
+        if (normalized.endsWith(";")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.contains(";");
     }
 
     private String executeHttp(AiToolConfig tool, Map<String, Object> args) {

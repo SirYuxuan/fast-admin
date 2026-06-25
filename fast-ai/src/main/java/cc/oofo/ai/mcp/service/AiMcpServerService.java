@@ -36,7 +36,7 @@ public class AiMcpServerService extends BaseService<AiMcpServer> {
         return page(query.getMPPage(), query.getQueryWrapper());
     }
 
-    public void add(AiMcpServerSaveDto dto) {
+    public AiMcpServer add(AiMcpServerSaveDto dto) {
         validate(dto, null);
         if (nameExists(null, dto.getName())) {
             throw new BizException("MCP 服务名称已存在");
@@ -46,6 +46,7 @@ public class AiMcpServerService extends BaseService<AiMcpServer> {
         copyToEntity(dto, entity);
         entity.setEnabled(dto.getEnabled() == null || dto.getEnabled());
         save(entity);
+        return entity;
     }
 
     public void update(AiMcpServerSaveDto dto) {

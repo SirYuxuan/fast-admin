@@ -22,4 +22,16 @@ public class AiChatMessage extends BaseEntity<AiChatMessage> {
 
     /** 消息内容。 */
     private String content;
+
+    /** 助手消息的思考与工具过程 JSON。 */
+    private String processJson;
+
+    /** 助手消息使用的模型配置名称。 */
+    private String modelName;
+
+    /** 助手消息使用的模型提供方。 */
+    private String modelProvider;
+
+    /** 助手消息使用的模型编码。 */
+    private String modelCode;
 }
