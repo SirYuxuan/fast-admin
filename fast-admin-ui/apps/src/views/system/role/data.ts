@@ -39,6 +39,7 @@ export function useFormSchema(): VbenFormSchema[] {
           { label: '自定义部门', value: 4 },
           { label: '仅本人', value: 5 },
         ],
+        style: { width: '200px' },
       },
       defaultValue: 1,
       fieldName: 'dataScope',
