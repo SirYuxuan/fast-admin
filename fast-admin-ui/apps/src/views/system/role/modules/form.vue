@@ -13,6 +13,7 @@ import { IconifyIcon } from '@vben/icons';
 import { Spin } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
+import { getDeptList } from '#/api/system/dept';
 import { getMenuList } from '#/api/system/menu';
 import { createRole, getRoleById, updateRole } from '#/api/system/role';
 
@@ -30,6 +31,9 @@ const [Form, formApi] = useVbenForm({
 const permissions = ref<DataNode[]>([]);
 const loadingPermissions = ref(false);
 const loadingRole = ref(false);
+
+const depts = ref<DataNode[]>([]);
+const loadingDepts = ref(false);
 
 const id = ref();
 const [Modal, modalApi] = useVbenModal({
@@ -62,9 +66,10 @@ const [Modal, modalApi] = useVbenModal({
 
       const permissionTask =
         permissions.value.length === 0 ? loadPermissions() : Promise.resolve();
+      const deptTask = depts.value.length === 0 ? loadDepts() : Promise.resolve();
       const roleTask = id.value ? loadRoleDetail(id.value) : Promise.resolve(data);
 
-      const [, roleDetail] = await Promise.all([permissionTask, roleTask]);
+      const [, , roleDetail] = await Promise.all([permissionTask, deptTask, roleTask]);
       // Wait for Vue to flush DOM updates (form fields mounted)
       await nextTick();
       if (roleDetail) {
@@ -94,6 +99,16 @@ async function loadPermissions() {
   }
 }
 
+async function loadDepts() {
+  loadingDepts.value = true;
+  try {
+    const res = await getDeptList();
+    depts.value = res as unknown as DataNode[];
+  } finally {
+    loadingDepts.value = false;
+  }
+}
+
 const getModalTitle = computed(() => {
   return formData.value?.id ? '编辑角色' : '新增角色';
 });
@@ -111,6 +126,22 @@ function getNodeClass(node: Recordable<any>) {
   <Modal :title="getModalTitle">
     <Spin :spinning="loadingRole" wrapper-class-name="w-full">
       <Form>
+        <template #deptIds="slotProps">
+          <Spin :spinning="loadingDepts" wrapper-class-name="w-full">
+            <Tree
+              :tree-data="depts"
+              multiple
+              bordered
+              :default-expanded-level="2"
+              v-bind="slotProps"
+              value-field="id"
+              label-field="name"
+              :propagate-select="false"
+              :bubble-select="false"
+            />
+          </Spin>
+        </template>
+
         <template #permissions="slotProps">
           <Spin :spinning="loadingPermissions" wrapper-class-name="w-full">
             <Tree

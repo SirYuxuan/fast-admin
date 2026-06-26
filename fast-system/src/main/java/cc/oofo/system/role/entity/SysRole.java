@@ -38,6 +38,11 @@ public class SysRole extends BaseEntity<SysRole> {
     private Boolean isEnabled;
 
     /**
+     * 数据范围：1-全部，2-本部门及子部门，3-本部门，4-自定义，5-仅本人
+     */
+    private Integer dataScope;
+
+    /**
      * 角色对应的权限列表
      */
     @TableField(exist = false)

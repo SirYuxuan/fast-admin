@@ -9,20 +9,22 @@
 ![Sa-Token](https://img.shields.io/badge/Sa--Token-1.x-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-**演示地址：** https://fa-admin.oofo.cc　·　账号 `admin`　·　密码 `admin123`
+**演示地址：** https://fa-admin.oofo.cc
+
+> 账号 `admin` · 密码 `admin123`
 
 ## 截图预览
 
-| 工作台 | 用户管理 | 角色管理 |
-|:---:|:---:|:---:|
+|              工作台               |               用户管理                |               角色管理                |
+| :-------------------------------: | :-----------------------------------: | :-----------------------------------: |
 | ![工作台](docs/images/工作台.png) | ![用户管理](docs/images/用户管理.png) | ![角色管理](docs/images/角色管理.png) |
 
-| 菜单管理 | 数据字典 | 系统参数 |
-|:---:|:---:|:---:|
+|               菜单管理                |               数据字典                |               系统参数                |
+| :-----------------------------------: | :-----------------------------------: | :-----------------------------------: |
 | ![菜单管理](docs/images/菜单管理.png) | ![数据字典](docs/images/数据字典.png) | ![系统参数](docs/images/系统参数.png) |
 
-| 定时任务 | 服务监控 | AI 运维助手 |
-|:---:|:---:|:---:|
+|               定时任务                |               服务监控                |                AI 运维助手                |
+| :-----------------------------------: | :-----------------------------------: | :---------------------------------------: |
 | ![定时任务](docs/images/定时任务.png) | ![服务监控](docs/images/服务监控.png) | ![AI运维助手](docs/images/AI运维助手.png) |
 
 ## 功能特性
@@ -54,14 +56,14 @@
 
 ## 模块
 
-| 模块                                  | 说明                                                                                            |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [`fast-framework`](fast-framework/)   | 框架基础：BaseEntity / BaseService / 全局异常 / TraceId / Excel / 代码生成                      |
-| [`fast-system`](fast-system/)         | 系统模块：用户、角色、部门、菜单、权限、字典、文件、定时任务、操作/登录日志、服务监控、在线用户 |
-| [`fast-ai`](fast-ai/)                 | AI 模块：模型配置、对话、Tool 调用、MCP 接入、工具调用日志                                      |
-| [`fast-biz-simple`](fast-biz-simple/) | 业务模块模板（复制即用，[使用说明](fast-biz-simple/README.md)）                                 |
-| [`fast-application`](fast-application/) | 启动入口与配置聚合                                                                            |
-| [`fast-admin-ui`](fast-admin-ui/)     | 前端工程                                                                                        |
+| 模块                                    | 说明                                                                                            |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [`fast-framework`](fast-framework/)     | 框架基础：BaseEntity / BaseService / 全局异常 / TraceId / Excel / 代码生成                      |
+| [`fast-system`](fast-system/)           | 系统模块：用户、角色、部门、菜单、权限、字典、文件、定时任务、操作/登录日志、服务监控、在线用户 |
+| [`fast-ai`](fast-ai/)                   | AI 模块：模型配置、对话、Tool 调用、MCP 接入、工具调用日志                                      |
+| [`fast-biz-simple`](fast-biz-simple/)   | 业务模块模板（复制即用，[使用说明](fast-biz-simple/README.md)）                                 |
+| [`fast-application`](fast-application/) | 启动入口与配置聚合                                                                              |
+| [`fast-admin-ui`](fast-admin-ui/)       | 前端工程                                                                                        |
 
 ## 快速开始
 
@@ -124,6 +126,7 @@ application-logging.yml    日志
 - [x] AI 工具调用日志
 - [x] AI SQL 工具敏感字段防护（别名绕过拦截 + 结果层脱敏）
 - [x] Demo 模式（只读演示环境）
+- [x] 数据权限（5 级数据范围：全部 / 部门及子部门 / 本部门 / 自定义 / 仅本人）
 
 ### 计划中
 
@@ -134,4 +137,3 @@ application-logging.yml    日志
 - [ ] 国际化（i18n）
 - [ ] AI 知识库（RAG 向量检索）
 - [ ] 移动端适配
-

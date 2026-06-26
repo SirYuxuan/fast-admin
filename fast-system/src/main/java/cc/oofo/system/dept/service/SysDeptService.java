@@ -161,8 +161,32 @@ public class SysDeptService extends BaseService<SysDept> {
     }
 
     /**
+     * 获取指定部门及其所有下级部门的 ID 列表（数据权限范围计算）。
+     *
+     * @param rootDeptId 根部门ID
+     * @return 包含根部门本身及所有后代部门的 ID 列表；若 rootDeptId 为空则返回空列表
+     */
+    public List<String> getDescendantIds(String rootDeptId) {
+        if (!StringUtils.hasText(rootDeptId)) {
+            return new ArrayList<>();
+        }
+        List<SysDept> allDepts = list();
+        List<String> result = new ArrayList<>();
+        collectDescendants(allDepts, rootDeptId, result);
+        return result;
+    }
+
+    /** 递归收集 parentId 节点及其所有后代的 ID。 */
+    private void collectDescendants(List<SysDept> all, String parentId, List<String> result) {
+        result.add(parentId);
+        all.stream()
+                .filter(d -> parentId.equals(d.getPid()))
+                .forEach(d -> collectDescendants(all, d.getId(), result));
+    }
+
+    /**
      * 查询所有部门（用于下拉选择）
-     * 
+     *
      * @return 部门列表
      */
     public List<SysDept> selectAll() {

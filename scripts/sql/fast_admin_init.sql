@@ -792,9 +792,26 @@ CREATE TABLE `sys_role` (
   `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除标记：false未删除，true已删除',
   `created_id` varchar(27) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '创建人ID',
   `updated_id` varchar(27) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '更新人ID',
+  `data_scope` tinyint NOT NULL DEFAULT '1' COMMENT '数据范围：1-全部，2-本部门及子部门，3-本部门，4-自定义，5-仅本人',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_role_code` (`code`) COMMENT '角色编码唯一'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统角色表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_dept`
+--
+
+DROP TABLE IF EXISTS `sys_role_dept`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_role_dept` (
+  `role_id` varchar(27) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '角色ID（KSUID）',
+  `dept_id` varchar(27) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '部门ID（KSUID）',
+  PRIMARY KEY (`role_id`,`dept_id`),
+  KEY `idx_role_dept_role` (`role_id`),
+  KEY `idx_role_dept_dept` (`dept_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色-部门关联表（自定义数据范围）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

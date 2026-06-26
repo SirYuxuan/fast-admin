@@ -14,21 +14,24 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 
 import cc.oofo.framework.core.service.BaseService;
+import cc.oofo.framework.datascope.DataScopeType;
 import cc.oofo.framework.exception.BizException;
 import cc.oofo.system.permission.entity.SysRolesMenus;
 import cc.oofo.system.permission.entity.SysUsersRoles;
 import cc.oofo.system.permission.mapper.SysRolesMenusMapper;
 import cc.oofo.system.permission.mapper.SysUsersRolesMapper;
 import cc.oofo.system.role.entity.SysRole;
+import cc.oofo.system.role.entity.SysRoleDept;
 import cc.oofo.system.role.entity.dto.SysRoleDto;
 import cc.oofo.system.role.entity.dto.SysRoleSaveDto;
 import cc.oofo.system.role.entity.dto.SysRoleSelectDto;
 import cc.oofo.system.role.entity.query.SysRoleQuery;
+import cc.oofo.system.role.mapper.SysRoleDeptMapper;
 import cc.oofo.system.role.mapper.SysRoleMapper;
 
 /**
  * 系统角色服务类
- * 
+ *
  * @author Sir丶雨轩
  * @since 2025/11/17
  */
@@ -42,9 +45,12 @@ public class SysRoleService extends BaseService<SysRole> {
     @Autowired
     private SysUsersRolesMapper sysUsersRolesMapper;
 
+    @Autowired
+    private SysRoleDeptMapper sysRoleDeptMapper;
+
     /**
      * 获取角色列表
-     * 
+     *
      * @return 角色列表
      */
     public List<SysRoleDto> list(SysRoleQuery query) {
@@ -53,7 +59,7 @@ public class SysRoleService extends BaseService<SysRole> {
 
     /**
      * 统计角色数量
-     * 
+     *
      * @param query 查询条件
      * @return 角色数量
      */
@@ -63,7 +69,7 @@ public class SysRoleService extends BaseService<SysRole> {
 
     /**
      * 获取角色下拉列表
-     * 
+     *
      * @return 角色下拉列表
      */
     public List<SysRoleSelectDto> listRoleSelect() {
@@ -78,7 +84,7 @@ public class SysRoleService extends BaseService<SysRole> {
 
     /**
      * 添加角色
-     * 
+     *
      * @param roleSaveDto 角色保存DTO
      */
     public void addRole(SysRoleSaveDto roleSaveDto) {
@@ -90,6 +96,10 @@ public class SysRoleService extends BaseService<SysRole> {
         SysRole role = new SysRole();
         BeanUtils.copyProperties(roleSaveDto, role);
         role.setIsEnabled(roleSaveDto.getStatus() != null && roleSaveDto.getStatus() == 1);
+        // 未设置数据范围时默认全部
+        if (role.getDataScope() == null) {
+            role.setDataScope(DataScopeType.ALL.getCode());
+        }
 
         // 生成角色编码
         if (StringUtils.hasText(roleSaveDto.getName())) {
@@ -107,14 +117,16 @@ public class SysRoleService extends BaseService<SysRole> {
                 rolesMenus.setMenuId(perm);
                 rolesMenusList.add(rolesMenus);
             });
-            // 批量保存关联 - 使用SQL批量插入
             sysRolesMenusMapper.batchInsert(rolesMenusList);
         }
+
+        // 保存自定义数据范围的部门绑定
+        saveRoleDepts(role.getId(), roleSaveDto.getDataScope(), roleSaveDto.getDeptIds());
     }
 
     /**
      * 更新角色
-     * 
+     *
      * @param roleSaveDto 角色保存DTO
      */
     public void update(SysRoleSaveDto roleSaveDto) {
@@ -146,10 +158,12 @@ public class SysRoleService extends BaseService<SysRole> {
                     rolesMenus.setMenuId(perm);
                     rolesMenusList.add(rolesMenus);
                 });
-                // 批量保存关联 - 使用SQL批量插入
                 sysRolesMenusMapper.batchInsert(rolesMenusList);
             }
         }
+
+        // 更新自定义数据范围的部门绑定（先删后插）
+        saveRoleDepts(role.getId(), roleSaveDto.getDataScope(), roleSaveDto.getDeptIds());
     }
 
     /**
@@ -163,11 +177,13 @@ public class SysRoleService extends BaseService<SysRole> {
                 .eq(SysRolesMenus::getRoleId, id));
         sysUsersRolesMapper.delete(Wrappers.lambdaQuery(SysUsersRoles.class)
                 .eq(SysUsersRoles::getRoleId, id));
+        // 同步删除部门绑定
+        sysRoleDeptMapper.deleteByRoleId(id);
     }
 
     /**
      * 检查角色名称是否存在
-     * 
+     *
      * @param id   角色ID（编辑时传入）
      * @param name 角色名称
      * @return 是否存在
@@ -184,8 +200,8 @@ public class SysRoleService extends BaseService<SysRole> {
     }
 
     /**
-     * 获取单个角色详情（带权限）
-     * 
+     * 获取单个角色详情（带权限和数据范围）
+     *
      * @param id 角色ID
      * @return 角色DTO
      */
@@ -208,6 +224,9 @@ public class SysRoleService extends BaseService<SysRole> {
                 .map(SysRolesMenus::getMenuId)
                 .collect(Collectors.toList()));
 
+        // 加载自定义数据范围的部门列表
+        dto.setDeptIds(sysRoleDeptMapper.selectDeptIdsByRoleId(id));
+
         return dto;
     }
 
@@ -227,4 +246,20 @@ public class SysRoleService extends BaseService<SysRole> {
         return code;
     }
 
+    /**
+     * 保存角色的自定义数据范围部门（先删旧数据再插新数据）。
+     * 仅当 dataScope == CUSTOM 时才有实际意义，其他范围直接清空旧绑定即可。
+     */
+    private void saveRoleDepts(String roleId, Integer dataScope, List<String> deptIds) {
+        // 清除旧绑定
+        sysRoleDeptMapper.deleteByRoleId(roleId);
+
+        if (DataScopeType.of(dataScope != null ? dataScope : DataScopeType.ALL.getCode())
+                == DataScopeType.CUSTOM
+                && deptIds != null && !deptIds.isEmpty()) {
+            List<SysRoleDept> list = new ArrayList<>();
+            deptIds.forEach(deptId -> list.add(new SysRoleDept(roleId, deptId)));
+            list.forEach(sysRoleDeptMapper::insert);
+        }
+    }
 }

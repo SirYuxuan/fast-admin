@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import cc.oofo.framework.core.service.BaseService;
+import cc.oofo.framework.datascope.DataScope;
 import cc.oofo.framework.exception.BizException;
 import cc.oofo.framework.excel.ImportResult;
 import cc.oofo.utils.PasswordUtil;
@@ -170,21 +171,25 @@ public class SysUserService extends BaseService<SysUser> implements SysUserApi {
     }
 
     /**
-     * SQL 查询用户列表（带角色）
+     * SQL 查询用户列表（带角色）。
+     * 通过 {@link DataScope} 切面自动注入当前用户的数据权限范围过滤条件。
      *
      * @param query 查询参数
      * @return 用户列表（非分页）
      */
+    @DataScope(tableAlias = "u", deptColumn = "dept_id", userColumn = "created_id")
     public List<SysUserDto> listUsers(SysUserQuery query) {
         return ((SysUserMapper) baseMapper).listUserWithRoles(query);
     }
 
     /**
-     * SQL 统计用户数量
+     * SQL 统计用户数量。
+     * 通过 {@link DataScope} 切面自动注入当前用户的数据权限范围过滤条件。
      *
      * @param query 查询参数
      * @return 总数
      */
+    @DataScope(tableAlias = "u", deptColumn = "dept_id", userColumn = "created_id")
     public Long countUsers(SysUserQuery query) {
         return ((SysUserMapper) baseMapper).countUserWithRoles(query);
     }

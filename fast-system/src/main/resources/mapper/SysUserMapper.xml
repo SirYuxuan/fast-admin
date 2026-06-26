@@ -52,6 +52,21 @@
                 test="query.endTime != null">
                 <![CDATA[ AND DATE(u.created_at) <= #{query.endTime} ]]>
             </if>
+            <!-- 数据权限过滤：dataScopeAll=false 时生效，条件由 DataScopeAspect 注入 -->
+            <if test="query.dataScopeAll == false">
+                AND (
+                    1 = 0
+                    <if test="query.dataScopeDeptIds != null and query.dataScopeDeptIds.size() > 0">
+                        OR ${query.dataScopeDeptColumn} IN
+                        <foreach collection="query.dataScopeDeptIds" item="id" open="(" separator="," close=")">
+                            #{id}
+                        </foreach>
+                    </if>
+                    <if test="query.dataScopeIncludeSelf and query.dataScopeUserId != null">
+                        OR ${query.dataScopeUserColumn} = #{query.dataScopeUserId}
+                    </if>
+                )
+            </if>
         </where>
     </sql>
 

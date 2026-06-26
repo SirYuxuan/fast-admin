@@ -30,6 +30,34 @@ export function useFormSchema(): VbenFormSchema[] {
       label: '备注',
     },
     {
+      component: 'Select',
+      componentProps: {
+        options: [
+          { label: '全部数据', value: 1 },
+          { label: '本部门及子部门', value: 2 },
+          { label: '仅本部门', value: 3 },
+          { label: '自定义部门', value: 4 },
+          { label: '仅本人', value: 5 },
+        ],
+      },
+      defaultValue: 1,
+      fieldName: 'dataScope',
+      label: '数据范围',
+    },
+    {
+      component: 'Input',
+      dependencies: {
+        show(values: Record<string, any>) {
+          return values.dataScope === 4;
+        },
+        triggerFields: ['dataScope'],
+      },
+      fieldName: 'deptIds',
+      formItemClass: 'items-start',
+      label: '自定义部门',
+      modelPropName: 'modelValue',
+    },
+    {
       component: 'Input',
       fieldName: 'permissions',
       formItemClass: 'items-start',
