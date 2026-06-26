@@ -43,6 +43,10 @@ public class AiToolExecutionService {
             "select ", "show ", "desc ", "describe ", "explain ");
     private static final Set<String> SENSITIVE_COLUMN_KEYWORDS = Set.of(
             "api_key", "apikey", "password", "passwd", "secret", "token", "private_key");
+    // 匹配 SQL 文本中直接引用的敏感列名（捕获别名场景：api_key AS k）
+    private static final Pattern SENSITIVE_COLUMN_IN_SQL = Pattern.compile(
+            "\\b(api_key|apikey|password|passwd|secret|token|private_key)\\b",
+            Pattern.CASE_INSENSITIVE);
 
     private final AiToolConfigService toolConfigService;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -66,6 +70,7 @@ public class AiToolExecutionService {
         if (!StringUtils.hasText(sql)) {
             throw new BizException("SQL 不能为空");
         }
+        rejectIfSensitiveColumnsReferenced(sql);
         Map<String, Object> safeParams = params == null ? Map.of() : new LinkedHashMap<>(params);
         String normalized = sql.strip().toLowerCase();
         if (normalized.endsWith(";")) {
@@ -92,6 +97,7 @@ public class AiToolExecutionService {
     }
 
     public String executeReadOnlySql(String sql, Map<String, Object> params, int maxRows) {
+        rejectIfSensitiveColumnsReferenced(sql);
         validateReadOnlySql(sql);
         int limit = Math.min(Math.max(maxRows, 1), MAX_QUERY_ROWS);
         Map<String, Object> safeParams = params == null ? Map.of() : new LinkedHashMap<>(params);
@@ -199,6 +205,17 @@ public class AiToolExecutionService {
         boolean readOnly = READONLY_SQL_PREFIXES.stream().anyMatch(lower::startsWith);
         if (!readOnly) {
             throw new BizException("只读 SQL 仅允许 select/show/desc/describe/explain");
+        }
+    }
+
+    /**
+     * 拒绝 SQL 中直接引用敏感列名的查询，防止通过别名绕过结果层脱敏。
+     * 与 maskRows 配合形成双重保护：前者阻断显式引用，后者兜底 SELECT *。
+     */
+    private void rejectIfSensitiveColumnsReferenced(String sql) {
+        Matcher m = SENSITIVE_COLUMN_IN_SQL.matcher(sql);
+        if (m.find()) {
+            throw new BizException("SQL 引用了敏感字段，禁止查询");
         }
     }
 
