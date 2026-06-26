@@ -55,6 +55,10 @@ export function activateAiModel(id: string) {
   return requestClient.post(`${Url}/${id}/activate`);
 }
 
+export function changeAiModelEnabled(id: string, enabled: boolean) {
+  return requestClient.post(`${Url}/${id}/enabled?enabled=${enabled}`);
+}
+
 export function deleteAiModel(id: string) {
   return requestClient.delete(`${Url}/${id}`);
 }

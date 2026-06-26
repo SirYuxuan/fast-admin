@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,8 +18,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cc.oofo.ai.agent.dto.AiChatSseEvent;
-import cc.oofo.ai.agent.entity.AiToolCallLog;
-import cc.oofo.ai.agent.mapper.AiToolCallLogMapper;
+import cc.oofo.ai.agent.service.AiToolAuditLogger;
 import cc.oofo.ai.agent.service.AiToolConfirmationService;
 import cc.oofo.ai.config.AiAssistantSettingService;
 import cc.oofo.ai.tool.entity.AiToolConfig;
@@ -39,6 +39,16 @@ public class AiToolCallbackService {
             """;
     public static final String READONLY_SQL_TOOL_CODE = "execute_readonly_sql";
     public static final String EXECUTE_SQL_TOOL_CODE = "execute_sql";
+    public static final String SCHEMA_TOOL_CODE = "describe_schema";
+    private static final String SCHEMA_TOOL_INPUT_SCHEMA = """
+            {
+              "type":"object",
+              "additionalProperties":false,
+              "properties":{
+                "table":{"type":"string","description":"表名；留空返回当前库所有表名与注释，传入表名返回该表字段定义"}
+              }
+            }
+            """;
     private static final String READONLY_SQL_INPUT_SCHEMA = """
             {
               "type":"object",
@@ -67,8 +77,14 @@ public class AiToolCallbackService {
     private final AiToolConfigService toolConfigService;
     private final AiToolExecutionService toolExecutionService;
     private final AiToolConfirmationService confirmationService;
-    private final AiToolCallLogMapper toolCallLogMapper;
+    private final AiToolAuditLogger auditLogger;
     private final ObjectMapper objectMapper;
+
+    @Value("${demo.enabled:false}")
+    private boolean demoModeEnabled;
+
+    @Value("${demo.message:演示模式禁止操作}")
+    private String demoModeMessage;
 
     /**
      * 返回当前用户有权使用的已启用工具列表。无权限的工具不会挂载给模型。
@@ -103,7 +119,13 @@ public class AiToolCallbackService {
                 && (!manualMode || selectedToolCodes.contains(READONLY_SQL_TOOL_CODE))) {
             callbacks.add(readonlySqlCallback(sessionId, operatorId, eventSink));
         }
+        if (settingService.isSchemaToolEnabled()
+                && hasPermission(permissionCodes, settingService.getSchemaToolPermissionCode())
+                && (!manualMode || selectedToolCodes.contains(SCHEMA_TOOL_CODE))) {
+            callbacks.add(schemaToolCallback(sessionId, operatorId, eventSink));
+        }
         if (settingService.isExecuteSqlEnabled()
+                && !demoModeEnabled
                 && includeExecuteSql
                 && hasPermission(permissionCodes, settingService.getExecuteSqlPermissionCode())
                 && (!manualMode || selectedToolCodes.contains(EXECUTE_SQL_TOOL_CODE))) {
@@ -185,10 +207,59 @@ public class AiToolCallbackService {
                 .build();
     }
 
+    private ToolCallback schemaToolCallback(String sessionId, String operatorId,
+            Consumer<AiChatSseEvent> eventSink) {
+        return FunctionToolCallback
+                .builder(SCHEMA_TOOL_CODE, (Map<String, Object> input, ToolContext context) -> {
+                    String argsJson = toJson(input);
+                    notify(eventSink, AiChatSseEvent.toolStart(SCHEMA_TOOL_CODE, argsJson));
+                    long start = System.currentTimeMillis();
+                    try {
+                        checkSchemaToolPermission(getPermissionCodes(context));
+                        Object table = input == null ? null : input.get("table");
+                        String result = toolExecutionService.describeSchema(
+                                table == null ? null : String.valueOf(table));
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(SCHEMA_TOOL_CODE, "builtin", true, cost));
+                        writeAuditLog(sessionId, operatorId, SCHEMA_TOOL_CODE,
+                                argsJson, truncate(result), true, null, cost);
+                        return result;
+                    } catch (Exception e) {
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(SCHEMA_TOOL_CODE, "builtin", false, cost));
+                        writeAuditLog(sessionId, operatorId, SCHEMA_TOOL_CODE,
+                                argsJson, null, false, e.getMessage(), cost);
+                        throw e;
+                    }
+                })
+                .description("""
+                        查询当前数据库的库表结构（仅读取 information_schema 元数据，不涉及业务数据）。
+                        table 留空时返回所有表名与注释；传入表名时返回该表的字段名、类型、是否可空、主键与注释。
+                        在编写 SQL 前可先用此工具确认真实表名与字段，避免猜测。
+                        """)
+                .inputSchema(SCHEMA_TOOL_INPUT_SCHEMA)
+                .inputType(new ParameterizedTypeReference<Map<String, Object>>() {
+                })
+                .build();
+    }
+
+    private void checkSchemaToolPermission(Collection<String> permissionCodes) {
+        String permissionCode = settingService.getSchemaToolPermissionCode();
+        if (!StringUtils.hasText(permissionCode)) {
+            return;
+        }
+        if (permissionCodes == null || !permissionCodes.contains(permissionCode)) {
+            throw new BizException("无权调用 AI 查询表结构工具");
+        }
+    }
+
     private ToolCallback executeSqlCallback(String sessionId, String operatorId,
             Consumer<AiChatSseEvent> eventSink) {
         return FunctionToolCallback
                 .builder(EXECUTE_SQL_TOOL_CODE, (Map<String, Object> input, ToolContext context) -> {
+                    if (demoModeEnabled) {
+                        throw new BizException(demoModeMessage);
+                    }
                     String sql = getRequiredString(input, "sql");
                     String argsJson = toJson(input);
 
@@ -282,21 +353,8 @@ public class AiToolCallbackService {
 
     private void writeAuditLog(String sessionId, String operatorId, String toolName,
             String argsJson, String resultJson, boolean success, String errorMsg, long costMs) {
-        try {
-            AiToolCallLog log = new AiToolCallLog();
-            log.setSessionId(sessionId);
-            log.setOperatorId(operatorId);
-            log.setToolName(toolName);
-            log.setSource("builtin");
-            log.setArgumentsJson(argsJson);
-            log.setResultJson(resultJson);
-            log.setSuccess(success);
-            log.setErrorMsg(StringUtils.hasText(errorMsg) ? truncate(errorMsg) : null);
-            log.setCostMs(costMs);
-            toolCallLogMapper.insert(log);
-        } catch (Exception e) {
-            AiToolCallbackService.log.warn("Failed to write tool call audit log for '{}': {}", toolName, e.getMessage());
-        }
+        auditLogger.write(sessionId, operatorId, toolName, AiToolAuditLogger.SOURCE_BUILTIN,
+                argsJson, resultJson, success, errorMsg, costMs);
     }
 
     @SuppressWarnings("unchecked")

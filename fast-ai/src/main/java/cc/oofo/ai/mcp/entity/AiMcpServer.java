@@ -38,6 +38,15 @@ public class AiMcpServer extends BaseEntity<AiMcpServer> {
     /** 是否启用。 */
     private Boolean enabled;
 
+    /** SSE 连接保活开关（仅 transport=sse 有意义）。 */
+    private Boolean keepAlive;
+
+    /** 保活间隔（秒）。 */
+    private Integer keepAliveInterval;
+
+    /** 关联的保活定时任务（sys_job）主键。 */
+    private String keepAliveJobId;
+
     /** 备注。 */
     private String remark;
 

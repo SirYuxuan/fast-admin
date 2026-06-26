@@ -5,9 +5,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -50,6 +53,10 @@ public class AiAgentChatService {
     }
 
     private record ModelInfo(String name, String provider, String code) {
+    }
+
+    private record TokenUsage(Integer promptTokens, Integer completionTokens, Integer totalTokens) {
+        static final TokenUsage EMPTY = new TokenUsage(null, null, null);
     }
 
     /**
@@ -103,7 +110,7 @@ public class AiAgentChatService {
                     event -> sendProcessEventUnchecked(emitter, processItems, event));
 
             if (chatClient == null) {
-                send(emitter, AiChatSseEvent.error("未配置可用的 AI 模型，请设置 AI_MODEL_CHAT 和对应 API Key"));
+                send(emitter, AiChatSseEvent.error("未配置可用的 AI 模型，请在模型管理中启用一个模型"));
                 emitter.complete();
                 return;
             }
@@ -113,15 +120,23 @@ public class AiAgentChatService {
             sendProcessEvent(emitter, processItems, AiChatSseEvent.thought("已加载上下文，正在生成回答。"));
 
             StringBuilder answer = new StringBuilder();
+            AtomicReference<TokenUsage> usageRef = new AtomicReference<>(TokenUsage.EMPTY);
             chatClient.prompt()
                     .system(properties.getSystemPrompt())
                     .messages(history)
                     .user(request.message())
                     .stream()
-                    .content()
-                    .doOnNext(delta -> {
-                        answer.append(delta);
-                        sendUnchecked(emitter, AiChatSseEvent.delta(delta));
+                    .chatResponse()
+                    .doOnNext(response -> {
+                        String delta = extractDelta(response);
+                        if (StringUtils.hasText(delta)) {
+                            answer.append(delta);
+                            sendUnchecked(emitter, AiChatSseEvent.delta(delta));
+                        }
+                        TokenUsage usage = extractUsage(response);
+                        if (usage != null) {
+                            usageRef.set(usage);
+                        }
                     })
                     .doOnError(error -> {
                         log.warn("AI chat stream failed", error);
@@ -129,7 +144,8 @@ public class AiAgentChatService {
                         emitter.complete();
                     })
                     .doOnComplete(() -> {
-                        persistAssistantMessage(sessionId, answer.toString(), toJson(processItems), modelInfo);
+                        persistAssistantMessage(sessionId, answer.toString(), toJson(processItems), modelInfo,
+                                usageRef.get());
                         sendUnchecked(emitter, AiChatSseEvent.done(UUID.randomUUID().toString()));
                         emitter.complete();
                     })
@@ -233,13 +249,42 @@ public class AiAgentChatService {
         }
     }
 
-    private void persistAssistantMessage(String sessionId, String content, String processJson, ModelInfo modelInfo) {
+    private void persistAssistantMessage(String sessionId, String content, String processJson, ModelInfo modelInfo,
+            TokenUsage usage) {
         try {
+            TokenUsage safeUsage = usage == null ? TokenUsage.EMPTY : usage;
             historyService.saveAssistantMessage(sessionId, content, processJson,
-                    modelInfo.name(), modelInfo.provider(), modelInfo.code());
+                    modelInfo.name(), modelInfo.provider(), modelInfo.code(),
+                    safeUsage.promptTokens(), safeUsage.completionTokens(), safeUsage.totalTokens());
         } catch (Exception e) {
             log.warn("Persist assistant message failed", e);
         }
+    }
+
+    /** 从流式响应块中取出本帧增量文本，可能为空（例如仅携带 usage 的收尾帧）。 */
+    private String extractDelta(ChatResponse response) {
+        if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+            return null;
+        }
+        return response.getResult().getOutput().getText();
+    }
+
+    /** 从响应块的元数据中取出 token 用量，多数模型只在收尾帧携带，取到即覆盖。 */
+    private TokenUsage extractUsage(ChatResponse response) {
+        if (response == null || response.getMetadata() == null) {
+            return null;
+        }
+        Usage usage = response.getMetadata().getUsage();
+        if (usage == null) {
+            return null;
+        }
+        Integer prompt = usage.getPromptTokens();
+        Integer completion = usage.getCompletionTokens();
+        Integer total = usage.getTotalTokens();
+        if (prompt == null && completion == null && total == null) {
+            return null;
+        }
+        return new TokenUsage(prompt, completion, total);
     }
 
     private ModelInfo currentModelInfo() {

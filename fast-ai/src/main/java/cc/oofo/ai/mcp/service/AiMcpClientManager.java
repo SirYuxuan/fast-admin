@@ -26,6 +26,7 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cc.oofo.ai.agent.dto.AiChatSseEvent;
+import cc.oofo.ai.agent.service.AiToolAuditLogger;
 import cc.oofo.ai.mcp.dto.AiMcpServerInspectDto;
 import cc.oofo.ai.mcp.entity.AiMcpServer;
 import cc.oofo.framework.exception.BizException;
@@ -62,6 +64,15 @@ public class AiMcpClientManager implements DisposableBean {
 
     private final AiMcpServerService mcpServerService;
     private final ObjectMapper objectMapper;
+    private final AiToolAuditLogger auditLogger;
+
+    @Value("${spring.ai.mcp.client.enabled:false}")
+    private boolean mcpClientEnabled;
+
+    /** 一次对话的审计上下文，随工具回调一起传递以写入 MCP 调用日志。 */
+    public record ChatAuditContext(String sessionId, String operatorId) {
+        public static final ChatAuditContext NONE = new ChatAuditContext(null, null);
+    }
 
     private volatile List<McpSyncClient> activeClients = List.of();
     private volatile Map<String, McpSyncClient> activeClientMap = Map.of();
@@ -80,6 +91,10 @@ public class AiMcpClientManager implements DisposableBean {
 
     @PostConstruct
     public void init() {
+        if (!mcpClientEnabled) {
+            log.info("MCP client disabled by spring.ai.mcp.client.enabled=false");
+            return;
+        }
         // 异步初始化，连接超时/失败不阻塞应用启动
         initExecutor.execute(() -> {
             try {
@@ -95,6 +110,13 @@ public class AiMcpClientManager implements DisposableBean {
      */
     public synchronized void reload() {
         closeAll();
+        if (!mcpClientEnabled) {
+            activeClients = List.of();
+            activeClientMap = Map.of();
+            serverStatuses = Map.of();
+            manualStreamableServers = Map.of();
+            return;
+        }
         List<AiMcpServer> servers = mcpServerService.listEnabled();
         List<McpSyncClient> clients = new ArrayList<>();
         Map<String, McpSyncClient> clientMap = new HashMap<>();
@@ -138,6 +160,10 @@ public class AiMcpClientManager implements DisposableBean {
      * 只重新加载指定 MCP 服务，避免全量重建其它已连接客户端。
      */
     public synchronized void reload(String serverId) {
+        if (!mcpClientEnabled) {
+            remove(serverId);
+            return;
+        }
         AiMcpServer server = mcpServerService.getByIdOrThrow(serverId);
         removeClient(serverId);
         if (!Boolean.TRUE.equals(server.getEnabled())) {
@@ -178,6 +204,41 @@ public class AiMcpClientManager implements DisposableBean {
         Map<String, McpServerStatus> statuses = new HashMap<>(serverStatuses);
         statuses.remove(serverId);
         serverStatuses = Collections.unmodifiableMap(statuses);
+    }
+
+    /**
+     * 对指定 MCP 服务的活动连接发送一次 MCP ping 保活探测。
+     * 探测失败（或当前无活动连接）时自动单服重连 {@link #reload(String)}，
+     * 由系统定时任务（sys_job）按配置间隔调用。
+     */
+    public void pingServer(String serverId) {
+        if (!mcpClientEnabled) {
+            return;
+        }
+        if (!StringUtils.hasText(serverId)) {
+            return;
+        }
+        McpSyncClient client = activeClientMap.get(serverId);
+        if (client == null) {
+            log.info("MCP keepalive: 服务 {} 当前无活动连接，尝试重连", serverId);
+            tryReload(serverId);
+            return;
+        }
+        try {
+            client.ping();
+            log.debug("MCP keepalive ping ok: {}", serverId);
+        } catch (Exception e) {
+            log.warn("MCP keepalive ping 失败，重连服务 {}: {}", serverId, e.getMessage());
+            tryReload(serverId);
+        }
+    }
+
+    private void tryReload(String serverId) {
+        try {
+            reload(serverId);
+        } catch (Exception e) {
+            log.warn("MCP keepalive 重连服务 {} 失败: {}", serverId, e.getMessage());
+        }
     }
 
     public void applyStatus(AiMcpServer server) {
@@ -275,22 +336,25 @@ public class AiMcpClientManager implements DisposableBean {
      * 返回所有已连接 MCP 服务器提供的工具回调列表。
      */
     public List<ToolCallback> listToolCallbacks() {
-        return listToolCallbacks((Consumer<AiChatSseEvent>) null);
+        return listToolCallbacks(ChatAuditContext.NONE, null);
     }
 
     /**
-     * 返回所有已连接 MCP 服务器提供的工具回调列表，并发送前端过程事件。
+     * 返回所有已连接 MCP 服务器提供的工具回调列表，并发送前端过程事件、写入审计日志。
      */
-    public List<ToolCallback> listToolCallbacks(Consumer<AiChatSseEvent> eventSink) {
+    public List<ToolCallback> listToolCallbacks(ChatAuditContext audit, Consumer<AiChatSseEvent> eventSink) {
+        if (!mcpClientEnabled) {
+            return List.of();
+        }
         List<McpSyncClient> clients = activeClients;
-        List<ToolCallback> manualCallbacks = listManualStreamableCallbacks(eventSink);
+        List<ToolCallback> manualCallbacks = listManualStreamableCallbacks(audit, eventSink);
         if (clients.isEmpty()) {
-            List<ToolCallback> callbacks = reloadAndListToolCallbacks(eventSink, "当前没有可用 MCP 客户端");
+            List<ToolCallback> callbacks = reloadAndListToolCallbacks(audit, eventSink, "当前没有可用 MCP 客户端");
             return mergeCallbacks(callbacks, manualCallbacks);
         }
-        List<ToolCallback> callbacks = listToolCallbacks(clients, eventSink);
+        List<ToolCallback> callbacks = listToolCallbacks(clients, audit, eventSink);
         if (callbacks.isEmpty() && hasEnabledServers()) {
-            callbacks = reloadAndListToolCallbacks(eventSink, "MCP 工具列表为空");
+            callbacks = reloadAndListToolCallbacks(audit, eventSink, "MCP 工具列表为空");
         }
         return mergeCallbacks(callbacks, manualCallbacks);
     }
@@ -299,17 +363,21 @@ public class AiMcpClientManager implements DisposableBean {
      * 只返回指定 MCP 服务提供的工具回调。连接仍由 Manager 统一维护，
      * 但每次聊天可以按前端选择缩小挂载范围。
      */
-    public List<ToolCallback> listToolCallbacks(Collection<String> serverIds, Consumer<AiChatSseEvent> eventSink) {
+    public List<ToolCallback> listToolCallbacks(Collection<String> serverIds, ChatAuditContext audit,
+            Consumer<AiChatSseEvent> eventSink) {
+        if (!mcpClientEnabled) {
+            return List.of();
+        }
         Set<String> selectedIds = normalizeServerIds(serverIds);
         if (selectedIds.isEmpty()) {
             return List.of();
         }
 
-        List<ToolCallback> callbacks = listSelectedToolCallbacks(selectedIds, eventSink);
+        List<ToolCallback> callbacks = listSelectedToolCallbacks(selectedIds, audit, eventSink);
         if (callbacks.isEmpty() && hasEnabledServers()) {
             try {
                 reload();
-                callbacks = listSelectedToolCallbacks(selectedIds, eventSink);
+                callbacks = listSelectedToolCallbacks(selectedIds, audit, eventSink);
             } catch (Exception e) {
                 log.warn("Reload MCP before listing selected tool callbacks failed: {}", e.getMessage());
             }
@@ -317,14 +385,15 @@ public class AiMcpClientManager implements DisposableBean {
         return callbacks;
     }
 
-    private List<ToolCallback> reloadAndListToolCallbacks(Consumer<AiChatSseEvent> eventSink, String reason) {
+    private List<ToolCallback> reloadAndListToolCallbacks(ChatAuditContext audit, Consumer<AiChatSseEvent> eventSink,
+            String reason) {
         if (!hasEnabledServers()) {
             return List.of();
         }
         log.info("{}，自动重载 MCP 后重试工具挂载", reason);
         try {
             reload();
-            return listToolCallbacks(activeClients, eventSink);
+            return listToolCallbacks(activeClients, audit, eventSink);
         } catch (Exception e) {
             log.warn("Reload MCP before listing tool callbacks failed: {}", e.getMessage());
             return List.of();
@@ -332,6 +401,9 @@ public class AiMcpClientManager implements DisposableBean {
     }
 
     private boolean hasEnabledServers() {
+        if (!mcpClientEnabled) {
+            return false;
+        }
         try {
             return !mcpServerService.listEnabled().isEmpty();
         } catch (Exception e) {
@@ -340,14 +412,15 @@ public class AiMcpClientManager implements DisposableBean {
         }
     }
 
-    private List<ToolCallback> listToolCallbacks(List<McpSyncClient> clients, Consumer<AiChatSseEvent> eventSink) {
+    private List<ToolCallback> listToolCallbacks(List<McpSyncClient> clients, ChatAuditContext audit,
+            Consumer<AiChatSseEvent> eventSink) {
         if (clients.isEmpty()) {
             return List.of();
         }
         try {
             ToolCallback[] callbacks = new SyncMcpToolCallbackProvider(clients).getToolCallbacks();
             return Arrays.stream(callbacks)
-                    .map(callback -> wrapMcpCallback(callback, eventSink))
+                    .map(callback -> wrapMcpCallback(callback, audit, eventSink))
                     .toList();
         } catch (Exception e) {
             log.warn("Failed to list MCP tool callbacks: {}", e.getMessage());
@@ -355,23 +428,25 @@ public class AiMcpClientManager implements DisposableBean {
         }
     }
 
-    private List<ToolCallback> listManualStreamableCallbacks(Consumer<AiChatSseEvent> eventSink) {
+    private List<ToolCallback> listManualStreamableCallbacks(ChatAuditContext audit,
+            Consumer<AiChatSseEvent> eventSink) {
         return manualStreamableServers.values().stream()
                 .flatMap(server -> server.snapshot().tools().stream()
-                        .map(tool -> manualStreamableCallback(server.server(), tool, eventSink)))
+                        .map(tool -> manualStreamableCallback(server.server(), tool, audit, eventSink)))
                 .toList();
     }
 
-    private List<ToolCallback> listSelectedToolCallbacks(Set<String> selectedIds, Consumer<AiChatSseEvent> eventSink) {
+    private List<ToolCallback> listSelectedToolCallbacks(Set<String> selectedIds, ChatAuditContext audit,
+            Consumer<AiChatSseEvent> eventSink) {
         List<McpSyncClient> clients = selectedIds.stream()
                 .map(activeClientMap::get)
                 .filter(client -> client != null)
                 .toList();
-        List<ToolCallback> sdkCallbacks = listToolCallbacks(clients, eventSink);
+        List<ToolCallback> sdkCallbacks = listToolCallbacks(clients, audit, eventSink);
         List<ToolCallback> manualCallbacks = manualStreamableServers.entrySet().stream()
                 .filter(entry -> selectedIds.contains(entry.getKey()))
                 .flatMap(entry -> entry.getValue().snapshot().tools().stream()
-                        .map(tool -> manualStreamableCallback(entry.getValue().server(), tool, eventSink)))
+                        .map(tool -> manualStreamableCallback(entry.getValue().server(), tool, audit, eventSink)))
                 .toList();
         return mergeCallbacks(sdkCallbacks, manualCallbacks);
     }
@@ -506,7 +581,7 @@ public class AiMcpClientManager implements DisposableBean {
     }
 
     private ToolCallback manualStreamableCallback(AiMcpServer server, AiMcpServerInspectDto.ToolInfo tool,
-            Consumer<AiChatSseEvent> eventSink) {
+            ChatAuditContext audit, Consumer<AiChatSseEvent> eventSink) {
         String schema = toJson(tool.inputSchema());
         return FunctionToolCallback
                 .builder(tool.name(), (Map<String, Object> input, ToolContext context) -> {
@@ -524,12 +599,14 @@ public class AiMcpClientManager implements DisposableBean {
                         String result = response.path("result").isMissingNode()
                                 ? response.toString()
                                 : response.path("result").toString();
-                        notify(eventSink, AiChatSseEvent.toolEnd(tool.name(), "mcp", true,
-                                System.currentTimeMillis() - start));
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(tool.name(), "mcp", true, cost));
+                        writeMcpAudit(audit, tool.name(), argsJson, result, true, null, cost);
                         return result;
                     } catch (Exception e) {
-                        notify(eventSink, AiChatSseEvent.toolEnd(tool.name(), "mcp", false,
-                                System.currentTimeMillis() - start));
+                        long cost = System.currentTimeMillis() - start;
+                        notify(eventSink, AiChatSseEvent.toolEnd(tool.name(), "mcp", false, cost));
+                        writeMcpAudit(audit, tool.name(), argsJson, null, false, e.getMessage(), cost);
                         throw e;
                     }
                 })
@@ -677,10 +754,8 @@ public class AiMcpClientManager implements DisposableBean {
         };
     }
 
-    private ToolCallback wrapMcpCallback(ToolCallback delegate, Consumer<AiChatSseEvent> eventSink) {
-        if (eventSink == null) {
-            return delegate;
-        }
+    private ToolCallback wrapMcpCallback(ToolCallback delegate, ChatAuditContext audit,
+            Consumer<AiChatSseEvent> eventSink) {
         return new ToolCallback() {
             @Override
             public ToolDefinition getToolDefinition() {
@@ -694,29 +769,43 @@ public class AiMcpClientManager implements DisposableBean {
 
             @Override
             public String call(String toolInput) {
-                return callMcp(delegate, toolInput, null, eventSink);
+                return callMcp(delegate, toolInput, null, audit, eventSink);
             }
 
             @Override
             public String call(String toolInput, ToolContext toolContext) {
-                return callMcp(delegate, toolInput, toolContext, eventSink);
+                return callMcp(delegate, toolInput, toolContext, audit, eventSink);
             }
         };
     }
 
     private String callMcp(ToolCallback delegate, String toolInput, ToolContext toolContext,
-            Consumer<AiChatSseEvent> eventSink) {
+            ChatAuditContext audit, Consumer<AiChatSseEvent> eventSink) {
         String toolName = delegate.getToolDefinition().name();
         notify(eventSink, AiChatSseEvent.toolStart(toolName, "mcp", toolInput));
         long start = System.currentTimeMillis();
         try {
             String result = toolContext == null ? delegate.call(toolInput) : delegate.call(toolInput, toolContext);
-            notify(eventSink, AiChatSseEvent.toolEnd(toolName, "mcp", true, System.currentTimeMillis() - start));
+            long cost = System.currentTimeMillis() - start;
+            notify(eventSink, AiChatSseEvent.toolEnd(toolName, "mcp", true, cost));
+            writeMcpAudit(audit, toolName, toolInput, result, true, null, cost);
             return result;
         } catch (Exception e) {
-            notify(eventSink, AiChatSseEvent.toolEnd(toolName, "mcp", false, System.currentTimeMillis() - start));
+            long cost = System.currentTimeMillis() - start;
+            notify(eventSink, AiChatSseEvent.toolEnd(toolName, "mcp", false, cost));
+            writeMcpAudit(audit, toolName, toolInput, null, false, e.getMessage(), cost);
             throw e;
         }
+    }
+
+    /** 写入 MCP 工具调用审计日志（source=mcp）。audit 为空表示非对话上下文，跳过。 */
+    private void writeMcpAudit(ChatAuditContext audit, String toolName, String argsJson, String resultJson,
+            boolean success, String errorMsg, long costMs) {
+        if (audit == null) {
+            return;
+        }
+        auditLogger.write(audit.sessionId(), audit.operatorId(), toolName, AiToolAuditLogger.SOURCE_MCP,
+                argsJson, resultJson, success, errorMsg, costMs);
     }
 
     private void notify(Consumer<AiChatSseEvent> eventSink, AiChatSseEvent event) {

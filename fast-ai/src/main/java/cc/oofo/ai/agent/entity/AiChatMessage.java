@@ -34,4 +34,13 @@ public class AiChatMessage extends BaseEntity<AiChatMessage> {
 
     /** 助手消息使用的模型编码。 */
     private String modelCode;
+
+    /** 本轮输入（提示）token 数，助手消息记录。 */
+    private Integer promptTokens;
+
+    /** 本轮输出（补全）token 数，助手消息记录。 */
+    private Integer completionTokens;
+
+    /** 本轮总 token 数，助手消息记录。 */
+    private Integer totalTokens;
 }

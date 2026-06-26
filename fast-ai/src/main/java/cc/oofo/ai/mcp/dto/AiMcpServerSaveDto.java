@@ -16,5 +16,9 @@ public class AiMcpServerSaveDto {
     private String argsJson;
     private String headersJson;
     private Boolean enabled;
+    /** SSE 连接保活开关。 */
+    private Boolean keepAlive;
+    /** 保活间隔（秒）。 */
+    private Integer keepAliveInterval;
     private String remark;
 }

@@ -1,0 +1,33 @@
+FROM maven:3.9.11-eclipse-temurin-25 AS builder
+
+WORKDIR /workspace
+
+COPY pom.xml ./
+COPY fast-framework/pom.xml fast-framework/pom.xml
+COPY fast-system/pom.xml fast-system/pom.xml
+COPY fast-biz-simple/pom.xml fast-biz-simple/pom.xml
+COPY fast-ai/pom.xml fast-ai/pom.xml
+COPY fast-application/pom.xml fast-application/pom.xml
+COPY deploy/maven-settings.xml /tmp/maven-settings.xml
+
+RUN --mount=type=cache,id=fast-admin-m2,target=/root/.m2 mvn -s /tmp/maven-settings.xml -U -B -pl fast-application -am dependency:go-offline
+
+COPY fast-framework fast-framework
+COPY fast-system fast-system
+COPY fast-biz-simple fast-biz-simple
+COPY fast-ai fast-ai
+COPY fast-application fast-application
+
+RUN --mount=type=cache,id=fast-admin-m2,target=/root/.m2 mvn -s /tmp/maven-settings.xml -U -B -pl fast-application -am package -DskipTests \
+    && cp fast-application/target/fast-application-*.jar /workspace/app.jar
+
+FROM eclipse-temurin:25-jre
+
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+COPY --from=builder /workspace/app.jar /app/app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -21,5 +21,6 @@ public class AiToolConfigQuery extends BaseQuery<AiToolConfig> {
 
     private String type;
 
+    @QueryField(operator = Operator.EQ)
     private Boolean enabled;
 }

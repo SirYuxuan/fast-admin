@@ -97,6 +97,12 @@ public class AiModelConfigService extends BaseService<AiModelConfig> {
                 .eq(AiModelConfig::getId, id));
     }
 
+    public void changeEnabled(String id, boolean enabled) {
+        AiModelConfig entity = getByIdOrThrow(id);
+        entity.setEnabled(enabled);
+        updateById(entity);
+    }
+
     public void del(String id) {
         AiModelConfig entity = getByIdOrThrow(id);
         if (Boolean.TRUE.equals(entity.getActive())) {

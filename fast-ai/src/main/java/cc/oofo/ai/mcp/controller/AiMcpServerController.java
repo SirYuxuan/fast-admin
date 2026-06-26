@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -74,6 +75,14 @@ public class AiMcpServerController {
     public Rs<Void> del(@PathVariable String id) {
         service.del(id);
         mcpClientManager.remove(id);
+        return Rs.ok();
+    }
+
+    @PostMapping("/{id}/enabled")
+    @OperationLog(title = "MCP 服务配置", type = BusinessType.UPDATE)
+    public Rs<Void> changeEnabled(@PathVariable String id, @RequestParam boolean enabled) {
+        service.changeEnabled(id, enabled);
+        mcpClientManager.reload(id);
         return Rs.ok();
     }
 

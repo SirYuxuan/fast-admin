@@ -14,6 +14,7 @@ import { Button, message, Modal as AModal } from 'ant-design-vue';
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import {
   activateAiModel,
+  changeAiModelEnabled,
   deleteAiModel,
   getAiModelPage,
   testAiModel,
@@ -84,6 +85,19 @@ function onDelete(row: AiModelApi.ModelConfig) {
   });
 }
 
+async function onEnabledChange(
+  newVal: boolean,
+  row: AiModelApi.ModelConfig,
+): Promise<boolean> {
+  try {
+    await changeAiModelEnabled(row.id, newVal);
+    message.success(newVal ? '已启用' : '已禁用');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const [Grid, gridApi] = useVbenVxeGrid({
   formOptions: {
     schema: useGridFormSchema(),
@@ -91,7 +105,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
     collapsed: true,
   },
   gridOptions: {
-    columns: useColumns(onActionClick),
+    columns: useColumns(onActionClick, onEnabledChange),
     height: 'auto',
     keepSource: true,
     proxyConfig: {

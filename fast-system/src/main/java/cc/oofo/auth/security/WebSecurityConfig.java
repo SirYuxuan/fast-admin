@@ -12,6 +12,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import cc.oofo.auth.security.filter.AuditContextFilter;
+import cc.oofo.auth.security.filter.DemoModeInterceptor;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
 import jakarta.servlet.DispatcherType;
@@ -31,12 +32,14 @@ public class WebSecurityConfig implements WebMvcConfigurer {
     private final CorsProperties corsProperties;
     private final InterceptorProperties interceptorProperties;
     private final AuditContextFilter auditContextFilter;
+    private final DemoModeInterceptor demoModeInterceptor;
 
     public WebSecurityConfig(CorsProperties corsProperties, InterceptorProperties interceptorProperties,
-            AuditContextFilter auditContextFilter) {
+            AuditContextFilter auditContextFilter, DemoModeInterceptor demoModeInterceptor) {
         this.corsProperties = corsProperties;
         this.interceptorProperties = interceptorProperties;
         this.auditContextFilter = auditContextFilter;
+        this.demoModeInterceptor = demoModeInterceptor;
     }
 
     /**
@@ -96,6 +99,10 @@ public class WebSecurityConfig implements WebMvcConfigurer {
         registry.addInterceptor(auditContextFilter)
                 .addPathPatterns(includePatterns)
                 .excludePathPatterns(excludePatterns);
+
+        registry.addInterceptor(demoModeInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns("/auth/login", "/auth/logout", "/ai/agent/chat", "/ai/agent/confirm/**");
     }
 
     /**
@@ -127,5 +134,16 @@ public class WebSecurityConfig implements WebMvcConfigurer {
             private List<String> includePatterns = List.of("/**");
             private List<String> excludePatterns = List.of("/auth/login");
         }
+    }
+
+    /**
+     * 演示模式配置。
+     */
+    @Data
+    @Configuration
+    @ConfigurationProperties(prefix = "demo")
+    public static class DemoProperties {
+        private boolean enabled = false;
+        private String message = "演示模式禁止操作";
     }
 }

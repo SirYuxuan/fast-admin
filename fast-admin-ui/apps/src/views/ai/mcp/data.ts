@@ -91,6 +91,39 @@ export function useFormSchema(
     {
       component: 'Switch',
       componentProps: { class: 'w-auto' },
+      defaultValue: false,
+      dependencies: {
+        show: (values: Record<string, any>) => values.transport === 'sse',
+        triggerFields: ['transport'],
+      },
+      fieldName: 'keepAlive',
+      help: '仅 SSE：定时发送 ping 保持长连接，避免被反向代理/网关空闲断开',
+      label: '连接保活',
+    },
+    {
+      component: 'InputNumber',
+      componentProps: {
+        addonAfter: '秒',
+        class: 'w-full',
+        max: 3600,
+        min: 5,
+        precision: 0,
+      },
+      defaultValue: 30,
+      dependencies: {
+        rules: (values: Record<string, any>) =>
+          values.transport === 'sse' && values.keepAlive ? 'required' : null,
+        show: (values: Record<string, any>) =>
+          values.transport === 'sse' && values.keepAlive === true,
+        triggerFields: ['transport', 'keepAlive'],
+      },
+      fieldName: 'keepAliveInterval',
+      help: '建议 15~60 秒，需小于中间链路的空闲超时',
+      label: '保活间隔',
+    },
+    {
+      component: 'Switch',
+      componentProps: { class: 'w-auto' },
       defaultValue: true,
       fieldName: 'enabled',
       label: '启用',
@@ -106,6 +139,7 @@ export function useFormSchema(
 
 export function useColumns<T = AiMcpApi.McpServer>(
   onActionClick: OnActionClickFn<T>,
+  onEnabledChange?: (newVal: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridOptions['columns'] {
   return [
     { field: 'name', title: '服务名称', minWidth: 160 },
@@ -132,11 +166,13 @@ export function useColumns<T = AiMcpApi.McpServer>(
     },
     {
       cellRender: {
-        name: 'CellTag',
+        attrs: { beforeChange: onEnabledChange },
+        name: onEnabledChange ? 'CellSwitch' : 'CellTag',
         options: [
           { label: '启用', value: true, color: 'blue' },
           { label: '禁用', value: false, color: 'default' },
         ],
+        props: { checkedValue: true, unCheckedValue: false },
       },
       field: 'enabled',
       title: '状态',

@@ -1,0 +1,44 @@
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: fast-admin-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - macmini
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify deploy env
+        run: |
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/Applications/Docker.app/Contents/Resources/bin" >> "$GITHUB_PATH"
+          ENV_FILE="${FAST_ADMIN_ENV_FILE:-$HOME/fast-admin/.env}"
+          test -f "$ENV_FILE"
+          echo "FAST_ADMIN_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
+
+      - name: Build and restart containers
+        run: |
+          docker-compose \
+            --env-file "$FAST_ADMIN_ENV_FILE" \
+            -p fast-admin \
+            -f deploy/docker-compose.yml \
+            up -d --build
+
+      - name: Verify public endpoint
+        run: curl -fsSIL --retry 5 --retry-delay 3 https://fa-admin.oofo.cc
+
+      - name: Prune old Docker images
+        run: docker image prune -f

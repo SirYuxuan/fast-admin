@@ -1,5 +1,7 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+demo:
+  enabled: ${DEMO_MODE_ENABLED:true}
 spring:
   application:
     name: fast-application

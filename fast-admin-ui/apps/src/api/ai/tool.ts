@@ -42,3 +42,7 @@ export function updateAiTool(data: Partial<AiToolApi.ToolConfig>) {
 export function deleteAiTool(id: string) {
   return requestClient.delete(`${Url}/${id}`);
 }
+
+export function changeAiToolEnabled(id: string, enabled: boolean) {
+  return requestClient.post(`${Url}/${id}/enabled?enabled=${enabled}`);
+}

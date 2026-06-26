@@ -17,6 +17,7 @@ import cc.oofo.ai.agent.entity.AiChatMessage;
 import cc.oofo.ai.agent.entity.AiChatSession;
 import cc.oofo.ai.agent.mapper.AiChatMessageMapper;
 import cc.oofo.ai.agent.mapper.AiChatSessionMapper;
+import cc.oofo.ai.config.AiAssistantSettingService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -27,14 +28,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AiChatHistoryService {
 
-    /** 注入提示词的历史消息条数上限（约等于最近 N/2 轮对话）。 */
-    private static final int HISTORY_LIMIT = 20;
     private static final String ROLE_USER = "user";
     private static final String ROLE_ASSISTANT = "assistant";
     private static final int TITLE_MAX = 50;
 
     private final AiChatSessionMapper sessionMapper;
     private final AiChatMessageMapper messageMapper;
+    private final AiAssistantSettingService settingService;
 
     /**
      * 确保会话存在，首条消息时创建并以其作为标题。
@@ -61,7 +61,7 @@ public class AiChatHistoryService {
         List<AiChatMessage> recent = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getSessionId, sessionId)
                 .orderByDesc(AiChatMessage::getCreatedAt)
-                .last("limit " + HISTORY_LIMIT));
+                .last("limit " + settingService.getChatHistoryWindow()));
         Collections.reverse(recent);
 
         List<Message> messages = new ArrayList<>(recent.size());
@@ -86,6 +86,12 @@ public class AiChatHistoryService {
 
     public void saveMessage(String sessionId, String role, String content, String processJson,
             String modelName, String modelProvider, String modelCode) {
+        saveMessage(sessionId, role, content, processJson, modelName, modelProvider, modelCode, null, null, null);
+    }
+
+    public void saveMessage(String sessionId, String role, String content, String processJson,
+            String modelName, String modelProvider, String modelCode,
+            Integer promptTokens, Integer completionTokens, Integer totalTokens) {
         if (!StringUtils.hasText(sessionId) || !StringUtils.hasText(content)) {
             return;
         }
@@ -97,6 +103,9 @@ public class AiChatHistoryService {
         message.setModelName(modelName);
         message.setModelProvider(modelProvider);
         message.setModelCode(modelCode);
+        message.setPromptTokens(promptTokens);
+        message.setCompletionTokens(completionTokens);
+        message.setTotalTokens(totalTokens);
         messageMapper.insert(message);
     }
 
@@ -115,6 +124,13 @@ public class AiChatHistoryService {
     public void saveAssistantMessage(String sessionId, String content, String processJson,
             String modelName, String modelProvider, String modelCode) {
         saveMessage(sessionId, ROLE_ASSISTANT, content, processJson, modelName, modelProvider, modelCode);
+    }
+
+    public void saveAssistantMessage(String sessionId, String content, String processJson,
+            String modelName, String modelProvider, String modelCode,
+            Integer promptTokens, Integer completionTokens, Integer totalTokens) {
+        saveMessage(sessionId, ROLE_ASSISTANT, content, processJson, modelName, modelProvider, modelCode,
+                promptTokens, completionTokens, totalTokens);
     }
 
     @Transactional(readOnly = true)

@@ -227,14 +227,11 @@ async function loadAbilityOptions() {
       getAiToolPage({ enabled: true, page: 1, pageSize: 200 }),
       getAiMcpServerPage({ enabled: true, page: 1, pageSize: 200 }),
     ]);
+    // 工具列表完全以数据库启用工具为准（含内置只读/执行 SQL，由系统参数开关同步 enabled）。
     toolOptions.value = extractPageItems<AiToolApi.ToolConfig>(tools).map((tool) => ({
       label: `${tool.name || tool.toolCode}（${tool.toolCode}）`,
       value: tool.toolCode,
     }));
-    toolOptions.value.push(
-      { label: '只读 SQL（execute_readonly_sql）', value: 'execute_readonly_sql' },
-      { label: '执行 SQL（execute_sql，需确认）', value: 'execute_sql' },
-    );
     mcpOptions.value = extractPageItems<AiMcpApi.McpServer>(mcps)
       .filter((server) => server.connected !== false)
       .map((server) => ({
@@ -918,6 +915,7 @@ async function respondSqlConfirm(confirmed: boolean) {
               v-model:value="selectedToolCodes"
               class="ai-assistant-scope-select"
               :disabled="sending || abilityLoading"
+              max-tag-count="responsive"
               mode="multiple"
               :options="toolOptions"
               placeholder="选择工具"
@@ -938,6 +936,7 @@ async function respondSqlConfirm(confirmed: boolean) {
               v-model:value="selectedMcpServerIds"
               class="ai-assistant-scope-select"
               :disabled="sending || abilityLoading"
+              max-tag-count="responsive"
               mode="multiple"
               :options="mcpOptions"
               placeholder="选择 MCP"
@@ -1114,6 +1113,7 @@ async function respondSqlConfirm(confirmed: boolean) {
                 v-model:value="selectedToolCodes"
                 class="ai-assistant-scope-select"
                 :disabled="sending || abilityLoading"
+                max-tag-count="responsive"
                 mode="multiple"
                 :options="toolOptions"
                 placeholder="选择工具"
@@ -1134,6 +1134,7 @@ async function respondSqlConfirm(confirmed: boolean) {
                 v-model:value="selectedMcpServerIds"
                 class="ai-assistant-scope-select"
                 :disabled="sending || abilityLoading"
+                max-tag-count="responsive"
                 mode="multiple"
                 :options="mcpOptions"
                 placeholder="选择 MCP"
@@ -1497,36 +1498,70 @@ async function respondSqlConfirm(confirmed: boolean) {
 
 .ai-assistant-scope {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 10px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  background: hsl(var(--muted) / 35%);
+  border-radius: 10px;
+  background: linear-gradient(180deg, hsl(var(--muted) / 45%), hsl(var(--muted) / 18%));
 }
 
 .ai-assistant-scope-item {
   display: flex;
   align-items: center;
   min-width: 0;
-  flex: 1 1 210px;
-  gap: 6px;
+  gap: 8px;
 }
 
 .ai-assistant-scope-item > span {
+  display: inline-flex;
+  align-items: center;
   flex: 0 0 auto;
+  width: 36px;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .ai-assistant-scope-mode {
-  width: 78px;
+  width: 80px;
   flex: 0 0 auto;
 }
 
 .ai-assistant-scope-select {
-  min-width: 120px;
-  flex: 1 1 160px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* 统一作用域内 Select 控件外观，贴合主题色板 */
+:deep(.ai-assistant-scope .ant-select:not(.ant-select-disabled) .ant-select-selector) {
+  border-radius: 8px;
+  border-color: hsl(var(--border));
+  background: hsl(var(--background));
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+:deep(.ai-assistant-scope .ant-select:not(.ant-select-disabled):hover .ant-select-selector) {
+  border-color: hsl(var(--primary) / 55%);
+}
+
+:deep(.ai-assistant-scope .ant-select-focused:not(.ant-select-disabled) .ant-select-selector) {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 18%);
+}
+
+:deep(.ai-assistant-scope .ant-select-multiple .ant-select-selection-item) {
+  border-radius: 6px;
+  border-color: transparent;
+  background: hsl(var(--primary) / 12%);
+  color: hsl(var(--primary));
+}
+
+:deep(.ai-assistant-scope .ant-select-multiple .ant-select-selection-item-remove) {
+  color: hsl(var(--primary) / 70%);
 }
 
 .ai-assistant-message {

@@ -32,6 +32,8 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
 
     private static final Pattern TOOL_CODE_PATTERN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]{1,63}$");
     private static final String READONLY_SQL_TOOL_CODE = "execute_readonly_sql";
+    private static final String EXECUTE_SQL_TOOL_CODE = "execute_sql";
+    private static final String SCHEMA_TOOL_CODE = "describe_schema";
     private static final Set<String> TYPES = Set.of("sql", "http");
     private static final Set<String> HTTP_METHODS = Set.of("GET", "POST", "PUT", "PATCH", "DELETE");
 
@@ -39,7 +41,7 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
     private final ObjectMapper objectMapper;
 
     public Page<AiToolConfig> page(AiToolConfigQuery query) {
-        syncReadonlySqlTool();
+        syncBuiltinTools();
         query.getQueryWrapper().orderByDesc("enabled").orderByDesc("created_at");
         return page(query.getMPPage(), query.getQueryWrapper());
     }
@@ -68,6 +70,15 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
         }
 
         copyToEntity(dto, entity);
+        updateById(entity);
+    }
+
+    public void changeEnabled(String id, boolean enabled) {
+        AiToolConfig entity = getByIdOrThrow(id);
+        if (Boolean.TRUE.equals(entity.getSystemBuiltin())) {
+            throw new BizException("内置工具的启用状态由系统参数控制，请在系统参数中调整");
+        }
+        entity.setEnabled(enabled);
         updateById(entity);
     }
 
@@ -102,12 +113,26 @@ public class AiToolConfigService extends BaseService<AiToolConfig> {
                 .orderByAsc(AiToolConfig::getToolCode));
     }
 
-    private void syncReadonlySqlTool() {
+    /**
+     * 将内置 SQL 工具的启用状态与权限码同步为系统参数表的最新值，
+     * 保证工具列表（含聊天窗口选择器）展示的内置工具与系统开关一致。
+     */
+    private void syncBuiltinTools() {
         update(new LambdaUpdateWrapper<AiToolConfig>()
                 .eq(AiToolConfig::getToolCode, READONLY_SQL_TOOL_CODE)
                 .eq(AiToolConfig::getSystemBuiltin, true)
                 .set(AiToolConfig::getEnabled, settingService.isReadonlySqlEnabled())
                 .set(AiToolConfig::getPermissionCode, settingService.getReadonlySqlPermissionCode()));
+        update(new LambdaUpdateWrapper<AiToolConfig>()
+                .eq(AiToolConfig::getToolCode, EXECUTE_SQL_TOOL_CODE)
+                .eq(AiToolConfig::getSystemBuiltin, true)
+                .set(AiToolConfig::getEnabled, settingService.isExecuteSqlEnabled())
+                .set(AiToolConfig::getPermissionCode, settingService.getExecuteSqlPermissionCode()));
+        update(new LambdaUpdateWrapper<AiToolConfig>()
+                .eq(AiToolConfig::getToolCode, SCHEMA_TOOL_CODE)
+                .eq(AiToolConfig::getSystemBuiltin, true)
+                .set(AiToolConfig::getEnabled, settingService.isSchemaToolEnabled())
+                .set(AiToolConfig::getPermissionCode, settingService.getSchemaToolPermissionCode()));
     }
 
     private void validate(AiToolConfigSaveDto dto, String id) {

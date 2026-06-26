@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -71,6 +72,13 @@ public class AiModelConfigController {
     @OperationLog(title = "AI 模型配置", type = BusinessType.UPDATE)
     public Rs<Void> activate(@PathVariable String id) {
         service.activate(id);
+        return Rs.ok();
+    }
+
+    @PostMapping("/{id}/enabled")
+    @OperationLog(title = "AI 模型配置", type = BusinessType.UPDATE)
+    public Rs<Void> changeEnabled(@PathVariable String id, @RequestParam boolean enabled) {
+        service.changeEnabled(id, enabled);
         return Rs.ok();
     }
 

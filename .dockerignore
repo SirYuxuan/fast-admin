@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+fast-admin-ui
+**/target
+**/.DS_Store
+*.log
+**/logs
+**/logs/**
+**/.env
+**/.env.local
+**/.env.*.local
+deploy/.env

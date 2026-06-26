@@ -116,6 +116,7 @@ export function useFormSchema(): VbenFormSchema[] {
 
 export function useColumns<T = AiModelApi.ModelConfig>(
   onActionClick: OnActionClickFn<T>,
+  onEnabledChange?: (newVal: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridOptions['columns'] {
   return [
     { field: 'name', title: '配置名称', minWidth: 160 },
@@ -141,11 +142,13 @@ export function useColumns<T = AiModelApi.ModelConfig>(
     },
     {
       cellRender: {
-        name: 'CellTag',
+        attrs: { beforeChange: onEnabledChange },
+        name: onEnabledChange ? 'CellSwitch' : 'CellTag',
         options: [
           { label: '启用', value: true, color: 'blue' },
           { label: '禁用', value: false, color: 'default' },
         ],
+        props: { checkedValue: true, unCheckedValue: false },
       },
       field: 'enabled',
       title: '状态',

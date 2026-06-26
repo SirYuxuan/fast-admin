@@ -63,6 +63,7 @@ public class AiAgentController {
         List<AiChatMessageDto> list = historyService.listMessages(sessionId, userId).stream()
                 .map(m -> new AiChatMessageDto(m.getRole(), m.getContent(), m.getProcessJson(),
                         m.getModelName(), m.getModelProvider(), m.getModelCode(),
+                        m.getPromptTokens(), m.getCompletionTokens(), m.getTotalTokens(),
                         m.getCreatedAt() == null ? null : m.getCreatedAt().toString()))
                 .toList();
         return Rs.ok(list);

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import cc.oofo.ai.tool.dto.AiToolConfigSaveDto;
@@ -50,6 +51,13 @@ public class AiToolConfigController {
     @OperationLog(title = "AI 工具配置", type = BusinessType.UPDATE)
     public Rs<Void> update(@RequestBody AiToolConfigSaveDto dto) {
         service.update(dto);
+        return Rs.ok();
+    }
+
+    @PostMapping("/{id}/enabled")
+    @OperationLog(title = "AI 工具配置", type = BusinessType.UPDATE)
+    public Rs<Void> changeEnabled(@PathVariable String id, @RequestParam boolean enabled) {
+        service.changeEnabled(id, enabled);
         return Rs.ok();
     }
 

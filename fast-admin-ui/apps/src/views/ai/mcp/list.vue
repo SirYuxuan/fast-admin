@@ -30,6 +30,7 @@ import {
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import {
+  changeAiMcpServerEnabled,
   deleteAiMcpServer,
   getAiMcpServerDetail,
   getAiMcpServerPage,
@@ -69,6 +70,19 @@ function onActionClick({ code, row }: OnActionClickParams<AiMcpApi.McpServer>) {
   }
 }
 
+async function onEnabledChange(
+  newVal: boolean,
+  row: AiMcpApi.McpServer,
+): Promise<boolean> {
+  try {
+    await changeAiMcpServerEnabled(row.id, newVal);
+    message.success(newVal ? '已启用' : '已禁用');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const [Grid, gridApi] = useVbenVxeGrid({
   formOptions: {
     schema: useGridFormSchema(),
@@ -76,7 +90,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
     collapsed: true,
   },
   gridOptions: {
-    columns: useColumns(onActionClick),
+    columns: useColumns(onActionClick, onEnabledChange),
     height: 'auto',
     keepSource: true,
     proxyConfig: {

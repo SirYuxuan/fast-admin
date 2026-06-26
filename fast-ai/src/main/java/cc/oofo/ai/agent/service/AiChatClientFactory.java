@@ -12,7 +12,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -42,7 +41,6 @@ public class AiChatClientFactory {
     private final AiModelConfigService modelConfigService;
     private final AiToolCallbackService toolCallbackService;
     private final AiMcpClientManager mcpClientManager;
-    private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
 
     /**
      * 创建 ChatClient，合并数据库工具和 MCP 工具，并挂载事件通知与审计。
@@ -64,7 +62,7 @@ public class AiChatClientFactory {
 
         List<ToolCallback> builtinCallbacks = resolveBuiltinCallbacks(request, sessionId, operatorId,
                 safePermissions, eventSink);
-        List<ToolCallback> mcpCallbacks = resolveMcpCallbacks(request, eventSink);
+        List<ToolCallback> mcpCallbacks = resolveMcpCallbacks(request, sessionId, operatorId, eventSink);
         List<ToolCallback> allCallbacks = new ArrayList<>();
         allCallbacks.addAll(builtinCallbacks);
         allCallbacks.addAll(mcpCallbacks);
@@ -100,16 +98,19 @@ public class AiChatClientFactory {
      * MCP 默认关闭。只有前端选择 auto 或 manual 时才会把 MCP 工具暴露给模型，
      * 避免每次聊天都把全部外部工具 schema 带进上下文。
      */
-    private List<ToolCallback> resolveMcpCallbacks(AiChatRequest request, Consumer<AiChatSseEvent> eventSink) {
+    private List<ToolCallback> resolveMcpCallbacks(AiChatRequest request, String sessionId, String operatorId,
+            Consumer<AiChatSseEvent> eventSink) {
         String mode = normalizeMode(request == null ? null : request.mcpMode(), MODE_OFF);
         if (MODE_OFF.equals(mode)) {
             return List.of();
         }
+        AiMcpClientManager.ChatAuditContext audit =
+                new AiMcpClientManager.ChatAuditContext(sessionId, operatorId);
         if (MODE_MANUAL.equals(mode)) {
             return mcpClientManager.listToolCallbacks(safeList(request == null ? null : request.mcpServerIds()),
-                    eventSink);
+                    audit, eventSink);
         }
-        return mcpClientManager.listToolCallbacks(eventSink);
+        return mcpClientManager.listToolCallbacks(audit, eventSink);
     }
 
     private String normalizeMode(String mode, String defaultMode) {
@@ -173,9 +174,7 @@ public class AiChatClientFactory {
         if (activeModel != null) {
             return ChatClient.builder(createChatModel(activeModel));
         }
-
-        ChatClient.Builder builder = chatClientBuilderProvider.getIfAvailable();
-        return builder == null ? null : builder.clone();
+        return null;
     }
 
     private ChatModel createChatModel(AiModelConfig config) {

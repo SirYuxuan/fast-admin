@@ -37,6 +37,7 @@ public class AiToolExecutionService {
     private static final int MAX_QUERY_ROWS = 100;
     private static final int MAX_HTTP_BODY_CHARS = 8000;
     private static final Pattern TEMPLATE_PARAM = Pattern.compile("\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*}}");
+    private static final Pattern SCHEMA_IDENTIFIER = Pattern.compile("[A-Za-z0-9_]+");
     private static final List<String> READONLY_SQL_PREFIXES = List.of(
             "select ", "show ", "desc ", "describe ", "explain ");
 
@@ -102,6 +103,50 @@ public class AiToolExecutionService {
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             throw new BizException("SQL 查询结果序列化失败");
+        }
+    }
+
+    /**
+     * 读取当前数据库的库表结构元数据。table 为空时返回所有表名与注释；
+     * 指定 table 时返回该表的字段定义。仅查询 information_schema，不触碰业务数据。
+     */
+    public String describeSchema(String table) {
+        try {
+            if (!StringUtils.hasText(table)) {
+                List<Map<String, Object>> tables = namedParameterJdbcTemplate.queryForList(
+                        "SELECT table_name AS tableName, table_comment AS tableComment "
+                                + "FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                + "ORDER BY table_name",
+                        Map.of());
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("tableCount", tables.size());
+                result.put("tables", tables);
+                return objectMapper.writeValueAsString(result);
+            }
+            String trimmed = table.trim();
+            if (!SCHEMA_IDENTIFIER.matcher(trimmed).matches()) {
+                throw new BizException("表名仅允许字母、数字、下划线：" + table);
+            }
+            List<Map<String, Object>> columns = namedParameterJdbcTemplate.queryForList(
+                    "SELECT column_name AS columnName, column_type AS columnType, is_nullable AS nullable, "
+                            + "column_key AS columnKey, column_default AS columnDefault, "
+                            + "column_comment AS columnComment "
+                            + "FROM information_schema.columns "
+                            + "WHERE table_schema = DATABASE() AND table_name = :table "
+                            + "ORDER BY ordinal_position",
+                    Map.of("table", trimmed));
+            if (columns.isEmpty()) {
+                throw new BizException("表不存在或没有字段：" + trimmed);
+            }
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("table", trimmed);
+            result.put("columnCount", columns.size());
+            result.put("columns", columns);
+            return objectMapper.writeValueAsString(result);
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException("查询表结构失败：" + e.getMessage());
         }
     }
 

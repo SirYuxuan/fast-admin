@@ -10,5 +10,8 @@ public record AiChatMessageDto(
         String modelName,
         String modelProvider,
         String modelCode,
+        Integer promptTokens,
+        Integer completionTokens,
+        Integer totalTokens,
         String createdAt) {
 }

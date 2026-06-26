@@ -1,21 +1,8 @@
 spring:
   ai:
-    model:
-      chat: ${AI_MODEL_CHAT:none}
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY:}
-      chat:
-        options:
-          model: ${ANTHROPIC_MODEL:claude-opus-4-8}
-    openai:
-      api-key: ${OPENAI_COMPAT_KEY:}
-      base-url: ${OPENAI_COMPAT_BASE_URL:https://api.openai.com}
-      chat:
-        options:
-          model: ${OPENAI_COMPAT_MODEL:gpt-5-mini}
     mcp:
       client:
-        enabled: ${AI_MCP_CLIENT_ENABLED:false}
+        enabled: ${AI_MCP_CLIENT_ENABLED:true}
 
 ai-assistant:
   enabled: ${AI_ASSISTANT_ENABLED:true}

@@ -13,6 +13,9 @@ export namespace AiMcpApi {
     argsJson?: string;
     headersJson?: string;
     enabled: boolean;
+    keepAlive?: boolean;
+    keepAliveInterval?: number;
+    keepAliveJobId?: string;
     connected?: boolean;
     toolCount?: number;
     promptCount?: number;
@@ -92,4 +95,8 @@ export function deleteAiMcpServer(id: string) {
 
 export function reloadAiMcpServer(id: string) {
   return requestClient.post(`${Url}/${id}/reload`);
+}
+
+export function changeAiMcpServerEnabled(id: string, enabled: boolean) {
+  return requestClient.post(`${Url}/${id}/enabled?enabled=${enabled}`);
 }

@@ -12,7 +12,11 @@ import { Plus } from '@vben/icons';
 import { Button, message, Modal as AModal } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
-import { deleteAiTool, getAiToolPage } from '#/api/ai/tool';
+import {
+  changeAiToolEnabled,
+  deleteAiTool,
+  getAiToolPage,
+} from '#/api/ai/tool';
 
 import { useColumns, useGridFormSchema } from './data';
 import Form from './modules/form.vue';
@@ -38,6 +42,23 @@ function onActionClick({ code, row }: OnActionClickParams<AiToolApi.ToolConfig>)
   }
 }
 
+async function onEnabledChange(
+  newVal: boolean,
+  row: AiToolApi.ToolConfig,
+): Promise<boolean> {
+  if (row.systemBuiltin) {
+    message.info('内置工具的启用状态由系统参数控制，无法在此切换');
+    return false;
+  }
+  try {
+    await changeAiToolEnabled(row.id, newVal);
+    message.success(newVal ? '已启用' : '已禁用');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const [Grid, gridApi] = useVbenVxeGrid({
   formOptions: {
     schema: useGridFormSchema(),
@@ -45,7 +66,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
     collapsed: true,
   },
   gridOptions: {
-    columns: useColumns(onActionClick),
+    columns: useColumns(onActionClick, onEnabledChange),
     height: 'auto',
     keepSource: true,
     proxyConfig: {
