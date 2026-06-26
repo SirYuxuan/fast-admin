@@ -16,7 +16,6 @@
 - **服务监控**：CPU / 内存 / JVM / 磁盘实时监控（OSHI）
 - **文件存储**：本地 / 阿里云 OSS / AWS S3 / FTP / SFTP 多策略
 - **AI 运营助手**：Spring AI 2.0，支持多模型配置切换、自定义 Tool、MCP 服务接入，SQL 工具内置敏感字段防护
-- **代码生成**：基于表结构一键生成 Controller / Service / Mapper / Entity / DTO
 - **Docker 部署**：开箱即用的 `docker-compose`，前后端分离镜像
 
 ## 技术栈
@@ -45,7 +44,7 @@
 | [`fast-system`](fast-system/)         | 系统模块：用户、角色、部门、菜单、权限、字典、文件、定时任务、操作/登录日志、服务监控、在线用户 |
 | [`fast-ai`](fast-ai/)                 | AI 模块：模型配置、对话、Tool 调用、MCP 接入、工具调用日志                                      |
 | [`fast-biz-simple`](fast-biz-simple/) | 业务模块模板（复制即用，[使用说明](fast-biz-simple/README.md)）                                 |
-| `fast-application`                    | 启动入口与配置聚合                                                                              |
+| [`fast-application`](fast-application/) | 启动入口与配置聚合                                                                            |
 | [`fast-admin-ui`](fast-admin-ui/)     | 前端工程                                                                                        |
 
 ## 快速开始
@@ -101,7 +100,6 @@ application-logging.yml    日志
 - [x] 文件存储多策略（本地 / OSS / S3 / FTP / SFTP）
 - [x] EasyExcel 注解式导入导出
 - [x] Knife4j OpenAPI 文档
-- [x] 代码生成器
 - [x] Docker Compose 一键部署
 - [x] AI 运营助手（Spring AI 2.0）
 - [x] AI 多模型配置管理（OpenAI / Anthropic / OpenAI-Compatible）
@@ -121,6 +119,3 @@ application-logging.yml    日志
 - [ ] AI 知识库（RAG 向量检索）
 - [ ] 移动端适配
 
-## 安全提示
-
-仓库内所有连接配置均为 **localhost demo 凭据**，仅用于本地开发。生产环境请通过环境变量或外部配置中心注入，**切勿提交真实密码到 Git**。

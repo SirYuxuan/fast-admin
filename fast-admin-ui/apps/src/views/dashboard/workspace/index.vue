@@ -227,7 +227,7 @@ function navTo(path: string) {
       <!-- 左侧 -->
       <Col :xs="24" :lg="16">
         <!-- 快捷入口 -->
-        <Card title="快捷入口" class="mb-4" size="small">
+        <Card title="快捷入口" class="mb-6" size="small">
           <template #extra>
             <span class="text-xs text-gray-400">常用功能</span>
           </template>
@@ -293,7 +293,7 @@ function navTo(path: string) {
       <!-- 右侧 -->
       <Col :xs="24" :lg="8">
         <!-- 系统通知 -->
-        <Card title="系统通知" class="mb-4" size="small">
+        <Card title="系统通知" class="mb-6" size="small">
           <template #extra>
             <Button type="link" size="small">更多</Button>
           </template>
