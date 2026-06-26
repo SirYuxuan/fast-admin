@@ -1,13 +1,29 @@
 # fast-admin
 
-> 雨轩快速开发平台 —— 基于 Spring Boot 3 的后台管理脚手架，内置 AI 运营助手。
+> 雨轩快速开发平台 —— 基于 Spring Boot 4 的后台管理脚手架，内置 AI 运营助手。
 
 ![Java](https://img.shields.io/badge/Java-25-007396?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?logo=springboot&logoColor=white)
 ![Spring AI](https://img.shields.io/badge/Spring_AI-2.0-6DB33F?logo=spring&logoColor=white)
 ![MyBatis Plus](https://img.shields.io/badge/MyBatis_Plus-3.5-blue)
 ![Sa-Token](https://img.shields.io/badge/Sa--Token-1.x-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
+**演示地址：** https://fa-admin.oofo.cc　·　账号 `admin`　·　密码 `admin123`
+
+## 截图预览
+
+| 工作台 | 用户管理 | 角色管理 |
+|:---:|:---:|:---:|
+| ![工作台](docs/images/工作台.png) | ![用户管理](docs/images/用户管理.png) | ![角色管理](docs/images/角色管理.png) |
+
+| 菜单管理 | 数据字典 | 系统参数 |
+|:---:|:---:|:---:|
+| ![菜单管理](docs/images/菜单管理.png) | ![数据字典](docs/images/数据字典.png) | ![系统参数](docs/images/系统参数.png) |
+
+| 定时任务 | 服务监控 | AI 运维助手 |
+|:---:|:---:|:---:|
+| ![定时任务](docs/images/定时任务.png) | ![服务监控](docs/images/服务监控.png) | ![AI运维助手](docs/images/AI运维助手.png) |
 
 ## 功能特性
 
@@ -23,7 +39,7 @@
 | 层次          | 选型                                                       |
 | ------------- | ---------------------------------------------------------- |
 | 语言 / 运行时 | JDK 25                                                     |
-| Web 框架      | Spring Boot 3.5                                            |
+| Web 框架      | Spring Boot 4.1                                            |
 | 鉴权          | Sa-Token                                                   |
 | ORM           | MyBatis-Plus 3.5 + MyBatis-Plus-Join                       |
 | 数据库        | MySQL 8.4（兼容 PostgreSQL）                               |
@@ -91,7 +107,7 @@ application-logging.yml    日志
 
 ### 已完成
 
-- [x] Spring Boot 3 + JDK 25 工程基础
+- [x] Spring Boot 4 + JDK 25 工程基础
 - [x] Sa-Token 登录鉴权 + RBAC 权限体系
 - [x] 用户 / 角色 / 菜单 / 部门 / 字典管理
 - [x] 定时任务（Quartz）+ 执行日志
