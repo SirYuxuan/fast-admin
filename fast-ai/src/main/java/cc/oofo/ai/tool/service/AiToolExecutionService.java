@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,6 +41,8 @@ public class AiToolExecutionService {
     private static final Pattern SCHEMA_IDENTIFIER = Pattern.compile("[A-Za-z0-9_]+");
     private static final List<String> READONLY_SQL_PREFIXES = List.of(
             "select ", "show ", "desc ", "describe ", "explain ");
+    private static final Set<String> SENSITIVE_COLUMN_KEYWORDS = Set.of(
+            "api_key", "apikey", "password", "passwd", "secret", "token", "private_key");
 
     private final AiToolConfigService toolConfigService;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -77,7 +80,7 @@ public class AiToolExecutionService {
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("total", rows.size());
                 result.put("returned", limited.size());
-                result.put("rows", limited);
+                result.put("rows", maskRows(limited));
                 return objectMapper.writeValueAsString(result);
             } else {
                 int affected = namedParameterJdbcTemplate.update(sql, safeParams);
@@ -99,7 +102,7 @@ public class AiToolExecutionService {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("total", rows.size());
             result.put("returned", limited.size());
-            result.put("rows", limited);
+            result.put("rows", maskRows(limited));
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             throw new BizException("SQL 查询结果序列化失败");
@@ -170,7 +173,7 @@ public class AiToolExecutionService {
         try {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("total", rows.size());
-            result.put("rows", limited);
+            result.put("rows", maskRows(limited));
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             throw new BizException("SQL 查询结果序列化失败");
@@ -197,6 +200,18 @@ public class AiToolExecutionService {
         if (!readOnly) {
             throw new BizException("只读 SQL 仅允许 select/show/desc/describe/explain");
         }
+    }
+
+    private List<Map<String, Object>> maskRows(List<Map<String, Object>> rows) {
+        return rows.stream().map(row -> {
+            Map<String, Object> masked = new LinkedHashMap<>(row);
+            masked.replaceAll((col, val) -> {
+                if (val == null) return null;
+                String lower = col.toLowerCase();
+                return SENSITIVE_COLUMN_KEYWORDS.stream().anyMatch(lower::contains) ? "******" : val;
+            });
+            return masked;
+        }).toList();
     }
 
     private boolean hasMultipleStatements(String sql) {
