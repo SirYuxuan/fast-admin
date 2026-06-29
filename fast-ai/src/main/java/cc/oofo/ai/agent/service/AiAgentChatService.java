@@ -20,9 +20,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cc.oofo.ai.agent.dto.AiChatRequest;
 import cc.oofo.ai.agent.dto.AiChatSseEvent;
-import cc.oofo.ai.config.AiAssistantProperties;
+import cc.oofo.ai.config.AiAssistantSettingService;
 import cc.oofo.ai.model.entity.AiModelConfig;
 import cc.oofo.ai.model.service.AiModelConfigService;
+import cc.oofo.ai.rag.service.AiKnowledgeBaseService;
 import cc.oofo.system.user.api.SysUserApi;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
@@ -33,10 +34,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AiAgentChatService {
 
-    private final AiAssistantProperties properties;
+    private final AiAssistantSettingService settingService;
     private final AiChatClientFactory chatClientFactory;
     private final AiChatHistoryService historyService;
     private final AiModelConfigService modelConfigService;
+    private final AiKnowledgeBaseService knowledgeBaseService;
     private final SysUserApi sysUserApi;
     private final AsyncTaskExecutor applicationTaskExecutor;
     private final ObjectMapper objectMapper;
@@ -84,13 +86,13 @@ public class AiAgentChatService {
             ModelInfo modelInfo = currentModelInfo();
             send(emitter, AiChatSseEvent.session(sessionId, modelInfo.name(), modelInfo.provider(), modelInfo.code()));
 
-            if (!properties.isEnabled()) {
+            if (!settingService.isAssistantEnabled()) {
                 send(emitter, AiChatSseEvent.error("AI 助手已关闭"));
                 emitter.complete();
                 return;
             }
 
-            if (properties.isRequirePermission() && !permissionCodes.contains("ai:assistant:use")) {
+            if (settingService.isAssistantRequirePermission() && !permissionCodes.contains("ai:assistant:use")) {
                 send(emitter, AiChatSseEvent.error("无权使用 AI 助手"));
                 emitter.complete();
                 return;
@@ -117,12 +119,24 @@ public class AiAgentChatService {
 
             // 先加载历史（仅含此前轮次）再落库本轮用户消息，避免历史与当前消息重复。
             List<Message> history = loadHistory(sessionId, userId, request.message());
+
+            // 知识库检索（RAG）：命中片段拼进系统提示词，失败/无命中则按普通对话处理
+            String systemPrompt = settingService.getAssistantSystemPrompt();
+            AiKnowledgeBaseService.ChatContext ragContext = knowledgeBaseService.retrieveChatContext(
+                    request.ragMode(), request.knowledgeBaseIds(), request.message());
+            if (ragContext != null && StringUtils.hasText(ragContext.text())) {
+                systemPrompt = systemPrompt + "\n\n" + ragContext.text();
+                sendProcessEvent(emitter, processItems, AiChatSseEvent.thought(
+                        "已从知识库召回 " + ragContext.sources().size() + " 段参考资料："
+                                + String.join("、", ragContext.sources())));
+            }
+
             sendProcessEvent(emitter, processItems, AiChatSseEvent.thought("已加载上下文，正在生成回答。"));
 
             StringBuilder answer = new StringBuilder();
             AtomicReference<TokenUsage> usageRef = new AtomicReference<>(TokenUsage.EMPTY);
             chatClient.prompt()
-                    .system(properties.getSystemPrompt())
+                    .system(systemPrompt)
                     .messages(history)
                     .user(request.message())
                     .stream()

@@ -26,7 +26,6 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -65,9 +64,7 @@ public class AiMcpClientManager implements DisposableBean {
     private final AiMcpServerService mcpServerService;
     private final ObjectMapper objectMapper;
     private final AiToolAuditLogger auditLogger;
-
-    @Value("${spring.ai.mcp.client.enabled:false}")
-    private boolean mcpClientEnabled;
+    private final AiMcpSettingService settingService;
 
     /** 一次对话的审计上下文，随工具回调一起传递以写入 MCP 调用日志。 */
     public record ChatAuditContext(String sessionId, String operatorId) {
@@ -91,8 +88,8 @@ public class AiMcpClientManager implements DisposableBean {
 
     @PostConstruct
     public void init() {
-        if (!mcpClientEnabled) {
-            log.info("MCP client disabled by spring.ai.mcp.client.enabled=false");
+        if (!isClientEnabled()) {
+            log.info("MCP client disabled by ai.mcp.client.enabled=false");
             return;
         }
         // 异步初始化，连接超时/失败不阻塞应用启动
@@ -110,7 +107,7 @@ public class AiMcpClientManager implements DisposableBean {
      */
     public synchronized void reload() {
         closeAll();
-        if (!mcpClientEnabled) {
+        if (!isClientEnabled()) {
             activeClients = List.of();
             activeClientMap = Map.of();
             serverStatuses = Map.of();
@@ -160,7 +157,7 @@ public class AiMcpClientManager implements DisposableBean {
      * 只重新加载指定 MCP 服务，避免全量重建其它已连接客户端。
      */
     public synchronized void reload(String serverId) {
-        if (!mcpClientEnabled) {
+        if (!isClientEnabled()) {
             remove(serverId);
             return;
         }
@@ -212,7 +209,7 @@ public class AiMcpClientManager implements DisposableBean {
      * 由系统定时任务（sys_job）按配置间隔调用。
      */
     public void pingServer(String serverId) {
-        if (!mcpClientEnabled) {
+        if (!isClientEnabled()) {
             return;
         }
         if (!StringUtils.hasText(serverId)) {
@@ -343,7 +340,7 @@ public class AiMcpClientManager implements DisposableBean {
      * 返回所有已连接 MCP 服务器提供的工具回调列表，并发送前端过程事件、写入审计日志。
      */
     public List<ToolCallback> listToolCallbacks(ChatAuditContext audit, Consumer<AiChatSseEvent> eventSink) {
-        if (!mcpClientEnabled) {
+        if (!isClientEnabled()) {
             return List.of();
         }
         List<McpSyncClient> clients = activeClients;
@@ -365,7 +362,7 @@ public class AiMcpClientManager implements DisposableBean {
      */
     public List<ToolCallback> listToolCallbacks(Collection<String> serverIds, ChatAuditContext audit,
             Consumer<AiChatSseEvent> eventSink) {
-        if (!mcpClientEnabled) {
+        if (!isClientEnabled()) {
             return List.of();
         }
         Set<String> selectedIds = normalizeServerIds(serverIds);
@@ -401,7 +398,7 @@ public class AiMcpClientManager implements DisposableBean {
     }
 
     private boolean hasEnabledServers() {
-        if (!mcpClientEnabled) {
+        if (!isClientEnabled()) {
             return false;
         }
         try {
@@ -410,6 +407,10 @@ public class AiMcpClientManager implements DisposableBean {
             log.debug("Failed to check enabled MCP servers", e);
             return false;
         }
+    }
+
+    private boolean isClientEnabled() {
+        return settingService.isClientEnabled();
     }
 
     private List<ToolCallback> listToolCallbacks(List<McpSyncClient> clients, ChatAuditContext audit,

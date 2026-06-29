@@ -1,7 +1,7 @@
 server:
+  max-http-request-header-size: 8388608      # 8MB，HTTP请求头最大大小
   tomcat:
-    max-http-post-size: 2147483648          # 2GB，POST请求最大大小
-    max-http-header-size: 8388608            # 8MB，HTTP请求头最大大小
+    max-http-form-post-size: 2147483648      # 2GB，POST表单请求最大大小
     connection-timeout: 600000               # 600秒，连接超时时间
     keep-alive-timeout: 600000               # 600秒，Keep-Alive超时时间
     threads:

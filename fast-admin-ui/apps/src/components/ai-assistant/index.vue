@@ -28,6 +28,7 @@ import {
   getAiToolPage,
   streamAiAgentChat,
 } from '#/api';
+import { getAiKnowledgeBasePage } from '#/api/ai/rag';
 
 type AbilityMode = 'auto' | 'manual' | 'off';
 
@@ -83,14 +84,18 @@ const input = ref('');
 const sessionId = ref<string>();
 const listRef = ref<HTMLElement>();
 const floatingRef = ref<HTMLElement>();
+const entryRef = ref<HTMLElement>();
 const sessions = ref<AiAgentApi.ChatSession[]>([]);
 const messages = ref<ChatMessage[]>([createWelcomeMessage()]);
 const toolMode = ref<AbilityMode>('auto');
 const mcpMode = ref<AbilityMode>('off');
+const ragMode = ref<AbilityMode>('auto');
 const selectedToolCodes = ref<string[]>([]);
 const selectedMcpServerIds = ref<string[]>([]);
+const selectedKnowledgeBaseIds = ref<string[]>([]);
 const toolOptions = ref<{ label: string; value: string }[]>([]);
 const mcpOptions = ref<{ label: string; value: string }[]>([]);
+const ragOptions = ref<{ label: string; value: string }[]>([]);
 const drawerWidth = computed(() => (expanded.value ? 'min(960px, 96vw)' : '420'));
 const conversationItems = computed(() =>
   sessions.value.map((session) => ({
@@ -118,11 +123,24 @@ const floatingStyle = ref({
   top: savedAssistantState.floatingStyle.top,
   width: savedAssistantState.floatingStyle.width,
 });
+const entryPosition = ref({
+  left: savedAssistantState.entryPosition.left,
+  top: savedAssistantState.entryPosition.top,
+});
+const entryDragging = ref(false);
 
 let abortController: AbortController | undefined;
+let entryDragMoved = false;
+let entryDragOffsetX = 0;
+let entryDragOffsetY = 0;
+let entryDragStartX = 0;
+let entryDragStartY = 0;
+let entryFrame = 0;
+let entrySuppressClick = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 let floatingFrame = 0;
+let pendingEntryPosition: Partial<typeof entryPosition.value> | undefined;
 let pendingFloatingStyle: Partial<typeof floatingStyle.value> | undefined;
 let pendingUserMessage = '';
 let resizeStartHeight = 0;
@@ -137,9 +155,14 @@ function loadAssistantState() {
     top: '96px',
     width: '720px',
   };
+  const defaultEntryPosition = {
+    left: 'calc(100vw - 88px)',
+    top: 'calc(100vh - 88px)',
+  };
   if (typeof window === 'undefined') {
     return {
-      detached: false,
+      detached: true,
+      entryPosition: defaultEntryPosition,
       expanded: false,
       floatingStyle: defaultStyle,
     };
@@ -149,6 +172,10 @@ function loadAssistantState() {
     const state = raw ? JSON.parse(raw) : {};
     return {
       detached: Boolean(state.detached),
+      entryPosition: {
+        ...defaultEntryPosition,
+        ...(state.entryPosition || {}),
+      },
       expanded: Boolean(state.expanded),
       floatingStyle: {
         ...defaultStyle,
@@ -157,7 +184,8 @@ function loadAssistantState() {
     };
   } catch {
     return {
-      detached: false,
+      detached: true,
+      entryPosition: defaultEntryPosition,
       expanded: false,
       floatingStyle: defaultStyle,
     };
@@ -172,6 +200,7 @@ function saveAssistantState() {
     ASSISTANT_STATE_KEY,
     JSON.stringify({
       detached: detached.value,
+      entryPosition: entryPosition.value,
       expanded: expanded.value,
       floatingStyle: floatingStyle.value,
     }),
@@ -218,14 +247,18 @@ async function loadSessions() {
 }
 
 async function loadAbilityOptions() {
-  if (abilityLoading.value || (toolOptions.value.length && mcpOptions.value.length)) {
+  if (
+    abilityLoading.value ||
+    (toolOptions.value.length && mcpOptions.value.length && ragOptions.value.length)
+  ) {
     return;
   }
   abilityLoading.value = true;
   try {
-    const [tools, mcps] = await Promise.all([
+    const [tools, mcps, kbs] = await Promise.all([
       getAiToolPage({ enabled: true, page: 1, pageSize: 200 }),
       getAiMcpServerPage({ enabled: true, page: 1, pageSize: 200 }),
+      getAiKnowledgeBasePage({ enabled: true, page: 1, pageSize: 200 }),
     ]);
     // 工具列表完全以数据库启用工具为准（含内置只读/执行 SQL，由系统参数开关同步 enabled）。
     toolOptions.value = extractPageItems<AiToolApi.ToolConfig>(tools).map((tool) => ({
@@ -238,6 +271,9 @@ async function loadAbilityOptions() {
         label: `${server.name}${server.toolCount ? `（${server.toolCount} 工具）` : ''}`,
         value: server.id,
       }));
+    ragOptions.value = extractPageItems<{ id: string; name: string }>(kbs).map(
+      (kb) => ({ label: kb.name, value: kb.id }),
+    );
   } catch {
     message.warning('工具列表加载失败');
   } finally {
@@ -358,7 +394,58 @@ function getToolCalls(process: ProcessItem[]) {
 }
 
 function openAssistant() {
+  detached.value = true;
   open.value = true;
+}
+
+function openAssistantFromEntry() {
+  if (entrySuppressClick) {
+    return;
+  }
+  openAssistant();
+}
+
+function startEntryDrag(event: MouseEvent) {
+  if (!entryRef.value || event.button !== 0) {
+    return;
+  }
+  entryDragging.value = true;
+  entryDragMoved = false;
+  entryDragStartX = event.clientX;
+  entryDragStartY = event.clientY;
+  const rect = entryRef.value.getBoundingClientRect();
+  entryDragOffsetX = event.clientX - rect.left;
+  entryDragOffsetY = event.clientY - rect.top;
+  window.addEventListener('mousemove', moveEntry);
+  window.addEventListener('mouseup', stopEntryDrag);
+}
+
+function moveEntry(event: MouseEvent) {
+  const movedX = Math.abs(event.clientX - entryDragStartX);
+  const movedY = Math.abs(event.clientY - entryDragStartY);
+  if (movedX > 3 || movedY > 3) {
+    entryDragMoved = true;
+  }
+  const width = entryRef.value?.offsetWidth || 48;
+  const height = entryRef.value?.offsetHeight || 48;
+  const left = Math.min(Math.max(8, event.clientX - entryDragOffsetX), window.innerWidth - width - 8);
+  const top = Math.min(Math.max(8, event.clientY - entryDragOffsetY), window.innerHeight - height - 8);
+  scheduleEntryPosition({
+    left: `${Math.round(left)}px`,
+    top: `${Math.round(top)}px`,
+  });
+}
+
+function stopEntryDrag() {
+  entryDragging.value = false;
+  window.removeEventListener('mousemove', moveEntry);
+  window.removeEventListener('mouseup', stopEntryDrag);
+  saveAssistantState();
+  entrySuppressClick = entryDragMoved;
+  window.setTimeout(() => {
+    entryDragMoved = false;
+    entrySuppressClick = false;
+  }, 160);
 }
 
 function detachAssistant() {
@@ -464,6 +551,24 @@ function scheduleFloatingStyle(style: Partial<typeof floatingStyle.value>) {
   });
 }
 
+function scheduleEntryPosition(style: Partial<typeof entryPosition.value>) {
+  pendingEntryPosition = {
+    ...pendingEntryPosition,
+    ...style,
+  };
+  if (entryFrame) {
+    return;
+  }
+  entryFrame = requestAnimationFrame(() => {
+    entryPosition.value = {
+      ...entryPosition.value,
+      ...pendingEntryPosition,
+    };
+    pendingEntryPosition = undefined;
+    entryFrame = 0;
+  });
+}
+
 function newSession() {
   stopMessage();
   sessionId.value = undefined;
@@ -480,12 +585,16 @@ watch(open, (visible) => {
   }
 });
 
-watch([detached, expanded, floatingStyle], saveAssistantState, { deep: true });
+watch([detached, expanded, floatingStyle, entryPosition], saveAssistantState, { deep: true });
 
 onBeforeUnmount(() => {
   if (floatingFrame) {
     cancelAnimationFrame(floatingFrame);
   }
+  if (entryFrame) {
+    cancelAnimationFrame(entryFrame);
+  }
+  stopEntryDrag();
   stopDrag();
   stopResize();
 });
@@ -721,9 +830,12 @@ async function sendMessage(value?: string) {
   try {
     await streamAiAgentChat(
       {
+        knowledgeBaseIds:
+          ragMode.value === 'manual' ? selectedKnowledgeBaseIds.value : undefined,
         mcpMode: mcpMode.value,
         mcpServerIds: mcpMode.value === 'manual' ? selectedMcpServerIds.value : undefined,
         message: content,
+        ragMode: ragMode.value,
         sessionId: sessionId.value,
         toolCodes: toolMode.value === 'manual' ? selectedToolCodes.value : undefined,
         toolMode: toolMode.value,
@@ -761,11 +873,19 @@ async function respondSqlConfirm(confirmed: boolean) {
 </script>
 
 <template>
-  <FloatButton class="ai-assistant-entry" tooltip="AI 运维助手" @click="openAssistant">
-    <template #icon>
-      <MessageSquareCode class="size-5" />
-    </template>
-  </FloatButton>
+  <div
+    ref="entryRef"
+    class="ai-assistant-entry-wrap"
+    :class="{ 'is-dragging': entryDragging }"
+    :style="entryPosition"
+    @mousedown.prevent="startEntryDrag"
+  >
+    <FloatButton class="ai-assistant-entry" tooltip="AI 运维助手" @click="openAssistantFromEntry">
+      <template #icon>
+        <MessageSquareCode class="size-5" />
+      </template>
+    </FloatButton>
+  </div>
 
   <Drawer
     v-if="!detached"
@@ -940,6 +1060,27 @@ async function respondSqlConfirm(confirmed: boolean) {
               mode="multiple"
               :options="mcpOptions"
               placeholder="选择 MCP"
+              size="small"
+            />
+          </div>
+          <div class="ai-assistant-scope-item is-knowledge">
+            <span>知识库</span>
+            <Select
+              v-model:value="ragMode"
+              class="ai-assistant-scope-mode"
+              :disabled="sending"
+              :options="modeOptions"
+              size="small"
+            />
+            <Select
+              v-if="ragMode === 'manual'"
+              v-model:value="selectedKnowledgeBaseIds"
+              class="ai-assistant-scope-select"
+              :disabled="sending || abilityLoading"
+              max-tag-count="responsive"
+              mode="multiple"
+              :options="ragOptions"
+              placeholder="选择知识库"
               size="small"
             />
           </div>
@@ -1141,6 +1282,27 @@ async function respondSqlConfirm(confirmed: boolean) {
                 size="small"
               />
             </div>
+            <div class="ai-assistant-scope-item is-knowledge">
+              <span>知识库</span>
+              <Select
+                v-model:value="ragMode"
+                class="ai-assistant-scope-mode"
+                :disabled="sending"
+                :options="modeOptions"
+                size="small"
+              />
+              <Select
+                v-if="ragMode === 'manual'"
+                v-model:value="selectedKnowledgeBaseIds"
+                class="ai-assistant-scope-select"
+                :disabled="sending || abilityLoading"
+                max-tag-count="responsive"
+                mode="multiple"
+                :options="ragOptions"
+                placeholder="选择知识库"
+                size="small"
+              />
+            </div>
           </div>
 
           <Sender
@@ -1179,9 +1341,23 @@ async function respondSqlConfirm(confirmed: boolean) {
 </template>
 
 <style scoped>
-.ai-assistant-entry {
-  inset-block-end: 32px;
-  inset-inline-end: 32px;
+.ai-assistant-entry-wrap {
+  position: fixed;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.ai-assistant-entry-wrap.is-dragging {
+  cursor: grabbing;
+}
+
+:deep(.ai-assistant-entry.ant-float-btn) {
+  position: static;
+  inset: auto;
 }
 
 .ai-assistant-floating {
@@ -1517,11 +1693,16 @@ async function respondSqlConfirm(confirmed: boolean) {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  width: 36px;
+  width: 48px;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ai-assistant-scope-item .ai-assistant-scope-select {
+  min-width: 148px;
 }
 
 .ai-assistant-scope-mode {
@@ -1601,6 +1782,10 @@ async function respondSqlConfirm(confirmed: boolean) {
 
 .ai-assistant-markdown {
   min-width: 0;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-x: auto;
 }
 
 :deep(.ai-assistant-markdown > :first-child) {
@@ -1616,13 +1801,77 @@ async function respondSqlConfirm(confirmed: boolean) {
 :deep(.ai-assistant-markdown ol),
 :deep(.ai-assistant-markdown blockquote),
 :deep(.ai-assistant-markdown pre),
-:deep(.ai-assistant-markdown table) {
+:deep(.ai-assistant-markdown table),
+:deep(.ai-assistant-markdown hr) {
   margin-block: 0 10px;
+}
+
+:deep(.ai-assistant-markdown h1),
+:deep(.ai-assistant-markdown h2),
+:deep(.ai-assistant-markdown h3),
+:deep(.ai-assistant-markdown h4),
+:deep(.ai-assistant-markdown h5),
+:deep(.ai-assistant-markdown h6) {
+  margin-block: 12px 8px;
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+:deep(.ai-assistant-markdown h1) {
+  font-size: 18px;
+}
+
+:deep(.ai-assistant-markdown h2) {
+  font-size: 16px;
+}
+
+:deep(.ai-assistant-markdown h3),
+:deep(.ai-assistant-markdown h4),
+:deep(.ai-assistant-markdown h5),
+:deep(.ai-assistant-markdown h6) {
+  font-size: 14px;
 }
 
 :deep(.ai-assistant-markdown ul),
 :deep(.ai-assistant-markdown ol) {
-  padding-inline-start: 20px;
+  padding-inline-start: 22px;
+}
+
+:deep(.ai-assistant-markdown ul) {
+  list-style: disc;
+}
+
+:deep(.ai-assistant-markdown ul ul) {
+  list-style: circle;
+}
+
+:deep(.ai-assistant-markdown ul ul ul) {
+  list-style: square;
+}
+
+:deep(.ai-assistant-markdown ol) {
+  list-style: decimal;
+}
+
+:deep(.ai-assistant-markdown li) {
+  margin-block: 3px;
+  padding-inline-start: 2px;
+}
+
+:deep(.ai-assistant-markdown li > p) {
+  margin-block: 0 6px;
+}
+
+:deep(.ai-assistant-markdown li > ul),
+:deep(.ai-assistant-markdown li > ol) {
+  margin-block: 4px 6px;
+}
+
+:deep(.ai-assistant-markdown a) {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 :deep(.ai-assistant-markdown code) {
@@ -1633,6 +1882,8 @@ async function respondSqlConfirm(confirmed: boolean) {
     monospace;
   font-size: 12px;
   padding: 1px 4px;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 :deep(.ai-assistant-markdown pre) {
@@ -1640,11 +1891,13 @@ async function respondSqlConfirm(confirmed: boolean) {
   border-radius: 6px;
   background: hsl(var(--muted) / 70%);
   padding: 10px;
+  line-height: 1.6;
 }
 
 :deep(.ai-assistant-markdown pre code) {
   background: transparent;
   padding: 0;
+  white-space: pre;
 }
 
 :deep(.ai-assistant-markdown blockquote) {
@@ -1653,17 +1906,30 @@ async function respondSqlConfirm(confirmed: boolean) {
   padding-inline-start: 10px;
 }
 
+:deep(.ai-assistant-markdown hr) {
+  border: 0;
+  border-block-start: 1px solid hsl(var(--border));
+}
+
 :deep(.ai-assistant-markdown table) {
   display: block;
   max-width: 100%;
   overflow: auto;
   border-collapse: collapse;
+  white-space: nowrap;
 }
 
 :deep(.ai-assistant-markdown th),
 :deep(.ai-assistant-markdown td) {
   border: 1px solid hsl(var(--border));
   padding: 4px 8px;
+  text-align: start;
+  vertical-align: top;
+}
+
+:deep(.ai-assistant-markdown th) {
+  background: hsl(var(--muted) / 45%);
+  font-weight: 600;
 }
 
 :deep(.ant-bubble-avatar) {

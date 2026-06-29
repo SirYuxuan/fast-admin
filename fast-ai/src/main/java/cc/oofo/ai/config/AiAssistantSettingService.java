@@ -13,6 +13,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AiAssistantSettingService {
 
+    public static final String ASSISTANT_ENABLED = "ai.assistant.enabled";
+    public static final String ASSISTANT_REQUIRE_PERMISSION = "ai.assistant.require-permission";
+    public static final String ASSISTANT_MAX_TOOL_ITERATIONS = "ai.assistant.max-tool-iterations";
+    public static final String ASSISTANT_SYSTEM_PROMPT = "ai.assistant.system-prompt";
+
     public static final String READONLY_SQL_ENABLED = "ai.readonly-sql.enabled";
     public static final String READONLY_SQL_PERMISSION_CODE = "ai.readonly-sql.permission-code";
     public static final String READONLY_SQL_MAX_ROWS = "ai.readonly-sql.max-rows";
@@ -25,6 +30,17 @@ public class AiAssistantSettingService {
     public static final String SCHEMA_TOOL_PERMISSION_CODE = "ai.schema-tool.permission-code";
 
     public static final String CHAT_HISTORY_WINDOW = "ai.chat.history-window";
+
+    private static final boolean DEFAULT_ASSISTANT_ENABLED = true;
+    private static final boolean DEFAULT_ASSISTANT_REQUIRE_PERMISSION = false;
+    private static final int DEFAULT_ASSISTANT_MAX_TOOL_ITERATIONS = 8;
+    private static final int MIN_ASSISTANT_MAX_TOOL_ITERATIONS = 1;
+    private static final int MAX_ASSISTANT_MAX_TOOL_ITERATIONS = 20;
+    private static final String DEFAULT_ASSISTANT_SYSTEM_PROMPT = """
+            你是 Fast Admin 后台的 AI 运维助手。
+            回答要简洁、准确；当你无法确认后台事实时，明确说明需要工具或数据支持。
+            当前版本仅支持对话，不得声称已经执行后台写操作。
+            """;
 
     private static final boolean DEFAULT_READONLY_SQL_ENABLED = true;
     private static final String DEFAULT_READONLY_SQL_PERMISSION_CODE = "ai:sql:readonly";
@@ -44,6 +60,24 @@ public class AiAssistantSettingService {
     private static final int MAX_CHAT_HISTORY_WINDOW = 100;
 
     private final SysConfigService sysConfigService;
+
+    public boolean isAssistantEnabled() {
+        return getBoolean(ASSISTANT_ENABLED, DEFAULT_ASSISTANT_ENABLED);
+    }
+
+    public boolean isAssistantRequirePermission() {
+        return getBoolean(ASSISTANT_REQUIRE_PERMISSION, DEFAULT_ASSISTANT_REQUIRE_PERMISSION);
+    }
+
+    public int getAssistantMaxToolIterations() {
+        int value = getInt(ASSISTANT_MAX_TOOL_ITERATIONS, DEFAULT_ASSISTANT_MAX_TOOL_ITERATIONS);
+        return Math.min(Math.max(value, MIN_ASSISTANT_MAX_TOOL_ITERATIONS), MAX_ASSISTANT_MAX_TOOL_ITERATIONS);
+    }
+
+    public String getAssistantSystemPrompt() {
+        String value = sysConfigService.getValue(ASSISTANT_SYSTEM_PROMPT);
+        return StringUtils.hasText(value) ? value.trim() : DEFAULT_ASSISTANT_SYSTEM_PROMPT.trim();
+    }
 
     public boolean isReadonlySqlEnabled() {
         return getBoolean(READONLY_SQL_ENABLED, DEFAULT_READONLY_SQL_ENABLED);

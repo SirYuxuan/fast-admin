@@ -6,7 +6,9 @@ import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
+import java.util.Optional;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -20,6 +22,7 @@ import cc.oofo.framework.exception.BizException;
 import cc.oofo.system.file.entity.SysFile;
 import cc.oofo.system.file.entity.SysFileConfig;
 import cc.oofo.system.file.entity.query.SysFileQuery;
+import cc.oofo.system.file.spi.FileReferenceChecker;
 import cc.oofo.system.file.storage.FileMeta;
 import cc.oofo.system.file.storage.FileStorageFactory;
 import cc.oofo.system.file.storage.StorageType;
@@ -40,6 +43,7 @@ public class SysFileService extends BaseService<SysFile> {
 
     private final FileStorageFactory storageFactory;
     private final SysFileConfigService configService;
+    private final ObjectProvider<FileReferenceChecker> referenceCheckers;
 
     public Page<SysFile> page(SysFileQuery query) {
         query.getQueryWrapper().orderByDesc("created_at");
@@ -108,6 +112,13 @@ public class SysFileService extends BaseService<SysFile> {
         SysFile f = getById(id);
         if (f == null) {
             throw new BizException("文件不存在");
+        }
+        // 被其它模块（如 AI 知识库）引用的文件禁止删除，需先解除引用
+        for (FileReferenceChecker checker : referenceCheckers) {
+            Optional<String> reason = checker.checkReference(id);
+            if (reason.isPresent()) {
+                throw new BizException(reason.get());
+            }
         }
         // 先删存储后台再删数据库；存储删失败也允许继续（避免脏数据 → 但记录会孤立，留给后续巡检）
         SysFileConfig cfg = configService.getById(f.getConfigId());

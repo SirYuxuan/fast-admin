@@ -1,17 +1,31 @@
+# ===================================================================
+# Spring AI 自动装配开关
+# -------------------------------------------------------------------
+# 本项目的 AI 模型（Chat / Embedding 等）与 MCP 客户端都在运行时
+# 根据 sys_config 动态构建，不依赖 Spring AI 在启动期的默认自动装配。
+#
+# 因此这里把 Spring AI 各模型的自动装配统一关闭，避免：
+#   1. 缺少 api-key 等连接属性时启动报错；
+#   2. 生成一套用不到的默认 Bean。
+#
+# 实现方式：Spring AI 每个自动配置类都带 @ConditionalOnProperty，
+# 把对应开关置为 none / false 即可关闭，无需在启动类上 exclude 具体类名
+# （类全名属于内部实现，会随版本变更；这些属性是对外稳定的公开配置）。
+# ===================================================================
 spring:
   ai:
+    # 模型类自动装配开关：取值为具体厂商（openai/anthropic...）时启用，
+    # 置为 none 表示不启用任何默认装配。
     model:
-      chat: none
-      embedding: none
-      image: none
+      chat: none                 # 关闭 OpenAI、Anthropic 等 Chat 默认装配
+      embedding: none            # 关闭 Embedding 默认装配
+      image: none                # 关闭文生图默认装配
+      moderation: none           # 关闭内容审核默认装配
       audio:
-        transcription: none
-        speech: none
-      moderation: none
+        speech: none             # 关闭文本转语音默认装配
+        transcription: none      # 关闭语音转文本默认装配
+    # MCP 客户端：一个开关即可关闭 MCP client 及其 stdio / SSE / streamable 传输
+    # 等全部默认自动装配（项目自行管理 MCP client 生命周期）。
     mcp:
       client:
-        enabled: ${AI_MCP_CLIENT_ENABLED:true}
-
-ai-assistant:
-  enabled: ${AI_ASSISTANT_ENABLED:true}
-  require-permission: ${AI_ASSISTANT_REQUIRE_PERMISSION:false}
+        enabled: false

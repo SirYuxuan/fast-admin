@@ -4,8 +4,9 @@ import type { AiModelApi } from '#/api/ai/model';
 import { computed, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
+import { RotateCw } from '@vben/icons';
 
-import { Button, message } from 'ant-design-vue';
+import { Button, message, Select } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
 import {
@@ -112,10 +113,28 @@ const [Modal, modalApi] = useVbenModal({
 
 <template>
   <Modal :title="getTitle">
-    <Form class="mx-4" />
-    <div class="mx-4 mt-2 flex items-center gap-2">
-      <Button :loading="fetching" @click="onFetchModels">获取模型列表</Button>
-      <Button :loading="testing" @click="onTest">测试连接</Button>
-    </div>
+    <Form class="mx-4">
+      <template #model="slotProps">
+        <div class="flex w-full items-center gap-2">
+          <Select v-bind="slotProps" class="min-w-0 flex-1" />
+          <Button
+            aria-label="获取模型列表"
+            html-type="button"
+            :loading="fetching"
+            title="获取模型列表"
+            @click="onFetchModels"
+          >
+            <template #icon>
+              <RotateCw class="size-4" />
+            </template>
+          </Button>
+        </div>
+      </template>
+    </Form>
+    <template #prepend-footer>
+      <div class="flex-auto">
+        <Button :loading="testing" @click="onTest">测试连接</Button>
+      </div>
+    </template>
   </Modal>
 </template>

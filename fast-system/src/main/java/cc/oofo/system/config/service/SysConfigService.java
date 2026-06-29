@@ -22,7 +22,9 @@ import cc.oofo.system.config.entity.query.SysConfigQuery;
 public class SysConfigService extends BaseService<SysConfig> {
 
     public Page<SysConfig> page(SysConfigQuery query) {
-        query.getQueryWrapper().orderByDesc("created_at");
+        query.getQueryWrapper()
+                .notLikeRight("config_key", "ai.")
+                .orderByDesc("created_at");
         return page(query.getMPPage(), query.getQueryWrapper());
     }
 

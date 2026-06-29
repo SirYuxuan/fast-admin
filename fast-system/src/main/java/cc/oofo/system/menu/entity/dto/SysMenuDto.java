@@ -80,6 +80,11 @@ public class SysMenuDto {
         private String activeIcon;
 
         /**
+         * 当前激活的菜单路径（停留在隐藏路由时，用于高亮指定的父级菜单）
+         */
+        private String activePath;
+
+        /**
          * 菜单标题（支持国际化key）
          */
         private String title;

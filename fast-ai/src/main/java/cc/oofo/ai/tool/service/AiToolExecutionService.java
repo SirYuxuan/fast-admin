@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -52,6 +53,9 @@ public class AiToolExecutionService {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final ObjectMapper objectMapper;
 
+    private record LimitedRows(List<Map<String, Object>> rows, int totalRead, boolean truncated) {
+    }
+
     public String execute(String toolCode, Map<String, Object> args, Collection<String> permissionCodes) {
         AiToolConfig tool = toolConfigService.getEnabledByToolCode(toolCode);
         if (tool == null) {
@@ -80,13 +84,7 @@ public class AiToolExecutionService {
         try {
             if (isQuery) {
                 int limit = Math.min(Math.max(maxRows, 1), MAX_QUERY_ROWS);
-                List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(sql, safeParams);
-                List<Map<String, Object>> limited = rows.size() > limit ? rows.subList(0, limit) : rows;
-                Map<String, Object> result = new LinkedHashMap<>();
-                result.put("total", rows.size());
-                result.put("returned", limited.size());
-                result.put("rows", maskRows(limited));
-                return objectMapper.writeValueAsString(result);
+                return formatLimitedRows(queryForLimitedRows(sql, safeParams, limit), true);
             } else {
                 int affected = namedParameterJdbcTemplate.update(sql, safeParams);
                 return "SQL 执行完成，影响行数：" + affected;
@@ -102,16 +100,10 @@ public class AiToolExecutionService {
         int limit = Math.min(Math.max(maxRows, 1), MAX_QUERY_ROWS);
         Map<String, Object> safeParams = params == null ? Map.of() : new LinkedHashMap<>(params);
 
-        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(sql, safeParams);
-        List<Map<String, Object>> limited = rows.size() > limit ? rows.subList(0, limit) : rows;
         try {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("total", rows.size());
-            result.put("returned", limited.size());
-            result.put("rows", maskRows(limited));
-            return objectMapper.writeValueAsString(result);
+            return formatLimitedRows(queryForLimitedRows(sql, safeParams, limit), true);
         } catch (Exception e) {
-            throw new BizException("SQL 查询结果序列化失败");
+            throw new BizException("SQL 查询失败：" + e.getMessage());
         }
     }
 
@@ -174,16 +166,38 @@ public class AiToolExecutionService {
             return "SQL 执行完成，影响行数：" + affected;
         }
 
-        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(tool.getSqlText(), args);
-        List<Map<String, Object>> limited = rows.size() > MAX_QUERY_ROWS ? rows.subList(0, MAX_QUERY_ROWS) : rows;
         try {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("total", rows.size());
-            result.put("rows", maskRows(limited));
-            return objectMapper.writeValueAsString(result);
+            return formatLimitedRows(queryForLimitedRows(tool.getSqlText(), args, MAX_QUERY_ROWS), false);
         } catch (Exception e) {
-            throw new BizException("SQL 查询结果序列化失败");
+            throw new BizException("SQL 查询失败：" + e.getMessage());
         }
+    }
+
+    /**
+     * 在 JDBC 层限制最多读取 limit + 1 行，避免 AI 查询先把大表全量加载到内存。
+     * 多读一行只用于判断结果是否被截断。
+     */
+    private LimitedRows queryForLimitedRows(String sql, Map<String, Object> params, int limit) {
+        JdbcTemplate limitedJdbcTemplate = new JdbcTemplate(
+                namedParameterJdbcTemplate.getJdbcTemplate().getDataSource());
+        limitedJdbcTemplate.setMaxRows(limit + 1);
+        limitedJdbcTemplate.setFetchSize(limit + 1);
+        List<Map<String, Object>> rows = new NamedParameterJdbcTemplate(limitedJdbcTemplate)
+                .queryForList(sql, params);
+        boolean truncated = rows.size() > limit;
+        List<Map<String, Object>> returnedRows = truncated ? rows.subList(0, limit) : rows;
+        return new LimitedRows(returnedRows, rows.size(), truncated);
+    }
+
+    private String formatLimitedRows(LimitedRows limitedRows, boolean includeReturned) throws Exception {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", limitedRows.totalRead());
+        if (includeReturned) {
+            result.put("returned", limitedRows.rows().size());
+        }
+        result.put("truncated", limitedRows.truncated());
+        result.put("rows", maskRows(limitedRows.rows()));
+        return objectMapper.writeValueAsString(result);
     }
 
     private void validateReadOnlySql(String sql) {

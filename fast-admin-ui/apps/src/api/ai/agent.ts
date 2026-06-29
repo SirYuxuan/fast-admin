@@ -5,9 +5,11 @@ import { requestClient } from '#/api/request';
 
 export namespace AiAgentApi {
   export interface ChatRequest {
+    knowledgeBaseIds?: string[];
     message: string;
     mcpMode?: 'auto' | 'manual' | 'off';
     mcpServerIds?: string[];
+    ragMode?: 'auto' | 'manual' | 'off';
     sessionId?: string;
     toolCodes?: string[];
     toolMode?: 'auto' | 'manual' | 'off';

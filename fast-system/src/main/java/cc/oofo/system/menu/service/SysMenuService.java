@@ -301,6 +301,7 @@ public class SysMenuService extends BaseService<SysMenu> {
         SysMenuDto.MenuMeta meta = new SysMenuDto.MenuMeta();
         meta.setIcon(menu.getIcon());
         meta.setActiveIcon(menu.getMetaActiveIcon());
+        meta.setActivePath(menu.getActivePath());
         meta.setTitle(menu.getMetaTitle());
         meta.setOrder(menu.getMetaOrder());
         meta.setAffixTab(menu.getMetaAffixTab());

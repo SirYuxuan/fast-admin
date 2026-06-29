@@ -42,6 +42,18 @@
       "name": "interceptor.auth.exclude-patterns",
       "type": "java.util.List<java.lang.String>",
       "description": "认证拦截器排除的路径模式"
+    },
+    {
+      "name": "demo.enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否开启演示模式（开启后拦截写操作）",
+      "defaultValue": false
+    },
+    {
+      "name": "demo.message",
+      "type": "java.lang.String",
+      "description": "演示模式下拦截操作时的提示信息",
+      "defaultValue": "演示模式禁止操作"
     }
   ]
 }

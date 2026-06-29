@@ -81,13 +81,20 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'InputNumber',
-      componentProps: { class: 'w-full', min: 0, max: 2, step: 0.1 },
+      componentProps: {
+        class: 'w-full',
+        max: 2,
+        min: 0,
+        step: 0.1,
+        style: { width: '100%' },
+      },
+      defaultValue: 0.7,
       fieldName: 'temperature',
       label: 'Temperature',
     },
     {
       component: 'InputNumber',
-      componentProps: { class: 'w-full', min: 1 },
+      componentProps: { class: 'w-full', min: 1, style: { width: '100%' } },
       fieldName: 'maxTokens',
       label: 'Max Tokens',
     },
@@ -117,6 +124,7 @@ export function useFormSchema(): VbenFormSchema[] {
 export function useColumns<T = AiModelApi.ModelConfig>(
   onActionClick: OnActionClickFn<T>,
   onEnabledChange?: (newVal: any, row: T) => PromiseLike<boolean | undefined>,
+  onActiveChange?: (newVal: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridOptions['columns'] {
   return [
     { field: 'name', title: '配置名称', minWidth: 160 },
@@ -130,11 +138,13 @@ export function useColumns<T = AiModelApi.ModelConfig>(
     { field: 'baseUrl', title: 'Base URL', minWidth: 220, showOverflow: true },
     {
       cellRender: {
-        name: 'CellTag',
+        attrs: { beforeChange: onActiveChange },
+        name: onActiveChange ? 'CellSwitch' : 'CellTag',
         options: [
           { label: '当前', value: true, color: 'green' },
           { label: '备用', value: false, color: 'default' },
         ],
+        props: { checkedValue: true, unCheckedValue: false },
       },
       field: 'active',
       title: '当前',
@@ -167,8 +177,6 @@ export function useColumns<T = AiModelApi.ModelConfig>(
         attrs: { onClick: onActionClick },
         name: 'CellOperation',
         options: [
-          { code: 'test', text: '测试', authCode: 'ai:model:edit' },
-          { code: 'activate', text: '设为当前', authCode: 'ai:model:activate' },
           { code: 'edit', authCode: 'ai:model:edit' },
           { code: 'delete', authCode: 'ai:model:delete' },
         ],
@@ -176,7 +184,7 @@ export function useColumns<T = AiModelApi.ModelConfig>(
       field: 'operation',
       fixed: 'right',
       title: '操作',
-      width: 280,
+      width: 140,
     },
   ];
 }
