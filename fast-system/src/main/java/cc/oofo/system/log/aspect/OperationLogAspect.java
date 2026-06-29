@@ -1,6 +1,8 @@
 package cc.oofo.system.log.aspect;
 
 import java.sql.Timestamp;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -35,6 +37,19 @@ public class OperationLogAspect {
 
     private final SysOperationLogService logService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String MASK = "******";
+    private static final Pattern JSON_SENSITIVE_VALUE = Pattern.compile(
+            "(\"[^\"]*(?:api[-_]?key|password|secret|authorization|cookie|access[-_]?token|refresh[-_]?token)[^\"]*\"\\s*:\\s*\")([^\"]*)(\")",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern JSON_TOKEN_VALUE = Pattern.compile(
+            "(\"token\"\\s*:\\s*\")([^\"]*)(\")",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern QUERY_SENSITIVE_VALUE = Pattern.compile(
+            "((?:api[-_]?key|password|secret|authorization|cookie|access[-_]?token|refresh[-_]?token|token)=)[^&\\s\"]+",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern BEARER_VALUE = Pattern.compile(
+            "(Bearer\\s+)[A-Za-z0-9._~+/=-]+",
+            Pattern.CASE_INSENSITIVE);
 
     @Around("@annotation(operationLog)")
     public Object around(ProceedingJoinPoint point, OperationLog operationLog) throws Throwable {
@@ -87,11 +102,11 @@ public class OperationLogAspect {
 
         // 请求参数
         if (ann.saveRequest()) {
-            entity.setRequestParams(safeJson(filterArgs(point.getArgs())));
+            entity.setRequestParams(maskSensitive(safeJson(filterArgs(point.getArgs()))));
         }
         // 响应结果
         if (ann.saveResponse() && thrown == null) {
-            String json = safeJson(result);
+            String json = maskSensitive(safeJson(result));
             if (json != null && json.length() > 2000) {
                 json = json.substring(0, 2000) + "...(truncated)";
             }
@@ -101,7 +116,7 @@ public class OperationLogAspect {
         // 状态
         if (thrown != null) {
             entity.setStatus(0);
-            entity.setErrorMsg(thrown.getMessage());
+            entity.setErrorMsg(maskSensitive(thrown.getMessage()));
         } else {
             entity.setStatus(1);
         }
@@ -137,5 +152,33 @@ public class OperationLogAspect {
         } catch (Exception e) {
             return String.valueOf(obj);
         }
+    }
+
+    private String maskSensitive(String text) {
+        if (text == null) return null;
+        String masked = replaceGroupValue(text, JSON_SENSITIVE_VALUE);
+        masked = replaceGroupValue(masked, JSON_TOKEN_VALUE);
+        masked = replaceQueryValue(masked, QUERY_SENSITIVE_VALUE);
+        return replaceQueryValue(masked, BEARER_VALUE);
+    }
+
+    private String replaceGroupValue(String text, Pattern pattern) {
+        Matcher matcher = pattern.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(matcher.group(1) + MASK + matcher.group(3)));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private String replaceQueryValue(String text, Pattern pattern) {
+        Matcher matcher = pattern.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(matcher.group(1) + MASK));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
     }
 }

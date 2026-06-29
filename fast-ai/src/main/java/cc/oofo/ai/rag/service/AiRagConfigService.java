@@ -26,6 +26,7 @@ public class AiRagConfigService {
     private static final String EMBEDDING_API_KEY = "ai.rag.embedding.api-key";
     private static final String EMBEDDING_MODEL = "ai.rag.embedding.model";
     private static final String EMBEDDING_TIMEOUT_MS = "ai.rag.embedding.timeout-ms";
+    private static final String MASK = "******";
 
     private static final boolean DEFAULT_ENABLED = true;
     private static final String DEFAULT_COLLECTION_NAME = "fast_admin_rag";
@@ -47,10 +48,10 @@ public class AiRagConfigService {
         dto.setEnabled(isEnabled());
         dto.setCollectionName(getCollectionName());
         dto.setQdrantUrl(getQdrantUrl());
-        dto.setQdrantApiKey(getQdrantApiKey());
+        dto.setQdrantApiKey(maskIfPresent(getQdrantApiKey()));
         dto.setQdrantTimeoutMs(getQdrantTimeoutMs());
         dto.setEmbeddingBaseUrl(getEmbeddingBaseUrl());
-        dto.setEmbeddingApiKey(getEmbeddingApiKey());
+        dto.setEmbeddingApiKey(maskIfPresent(getEmbeddingApiKey()));
         dto.setEmbeddingModel(getEmbeddingModel());
         dto.setEmbeddingTimeoutMs(getEmbeddingTimeoutMs());
         return dto;
@@ -77,14 +78,16 @@ public class AiRagConfigService {
                 "AI 知识库写入 Qdrant 时使用的集合名");
         upsert(QDRANT_URL, "AI 知识库 Qdrant URL", dto.getQdrantUrl().trim(),
                 "Qdrant REST 地址，例如 http://127.0.0.1:6333");
-        upsert(QDRANT_API_KEY, "AI 知识库 Qdrant API Key", trimToEmpty(dto.getQdrantApiKey()),
+        upsert(QDRANT_API_KEY, "AI 知识库 Qdrant API Key",
+                resolveSecret(QDRANT_API_KEY, dto.getQdrantApiKey(), DEFAULT_QDRANT_API_KEY),
                 "Qdrant API Key，未开启鉴权时留空");
         upsert(QDRANT_TIMEOUT_MS, "AI 知识库 Qdrant 超时",
                 String.valueOf(clampTimeout(dto.getQdrantTimeoutMs(), DEFAULT_QDRANT_TIMEOUT_MS)),
                 "Qdrant 请求超时时间，单位毫秒");
         upsert(EMBEDDING_BASE_URL, "AI 知识库 Embedding Base URL", trimToEmpty(dto.getEmbeddingBaseUrl()),
                 "OpenAI 兼容 Embedding Base URL，例如 https://api.openai.com/v1");
-        upsert(EMBEDDING_API_KEY, "AI 知识库 Embedding API Key", trimToEmpty(dto.getEmbeddingApiKey()),
+        upsert(EMBEDDING_API_KEY, "AI 知识库 Embedding API Key",
+                resolveSecret(EMBEDDING_API_KEY, dto.getEmbeddingApiKey(), DEFAULT_EMBEDDING_API_KEY),
                 "Embedding 服务 API Key");
         upsert(EMBEDDING_MODEL, "AI 知识库 Embedding 模型", dto.getEmbeddingModel().trim(),
                 "Embedding 模型名称，例如 text-embedding-3-small");
@@ -185,5 +188,16 @@ public class AiRagConfigService {
 
     private String trimToEmpty(String value) {
         return StringUtils.hasText(value) ? value.trim() : "";
+    }
+
+    private String maskIfPresent(String value) {
+        return StringUtils.hasText(value) ? MASK : "";
+    }
+
+    private String resolveSecret(String key, String input, String defaultValue) {
+        if (StringUtils.hasText(input) && !MASK.equals(input.trim())) {
+            return input.trim();
+        }
+        return getString(key, defaultValue);
     }
 }

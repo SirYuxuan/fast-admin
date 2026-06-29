@@ -308,8 +308,15 @@ onMounted(async () => {
                   <FormItem class="span-2" label="Qdrant URL">
                     <Input v-model:value="form.rag.qdrantUrl" />
                   </FormItem>
-                  <FormItem class="span-2" label="Qdrant API Key">
-                    <Input.Password v-model:value="form.rag.qdrantApiKey" />
+                  <FormItem
+                    class="span-2"
+                    label="Qdrant API Key"
+                    extra="已配置时显示 ******；需要修改时输入新的 Key"
+                  >
+                    <Input.Password
+                      v-model:value="form.rag.qdrantApiKey"
+                      placeholder="未开启鉴权可留空"
+                    />
                   </FormItem>
                   <FormItem label="Qdrant 超时毫秒">
                     <InputNumber
@@ -333,8 +340,15 @@ onMounted(async () => {
                   <FormItem class="span-2" label="Embedding Base URL">
                     <Input v-model:value="form.rag.embeddingBaseUrl" />
                   </FormItem>
-                  <FormItem class="span-2" label="Embedding API Key">
-                    <Input.Password v-model:value="form.rag.embeddingApiKey" />
+                  <FormItem
+                    class="span-2"
+                    label="Embedding API Key"
+                    extra="已配置时显示 ******；需要修改时输入新的 Key"
+                  >
+                    <Input.Password
+                      v-model:value="form.rag.embeddingApiKey"
+                      placeholder="保存后不回显明文"
+                    />
                   </FormItem>
                   <FormItem class="span-3" label="Embedding 模型">
                     <Input v-model:value="form.rag.embeddingModel" />
