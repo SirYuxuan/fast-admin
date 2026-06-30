@@ -45,6 +45,7 @@
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
     "ant-design-x-vue": "1.6.0",
+    "bpmn-js": "^17.11.1",
     "dayjs": "catalog:",
     "markdown-it": "^14.2.0",
     "pinia": "catalog:",

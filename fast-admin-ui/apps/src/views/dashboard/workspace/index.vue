@@ -250,7 +250,7 @@ function navTo(path: string) {
         </Card>
 
         <!-- 操作日志 -->
-        <Card title="操作日志" size="small">
+        <Card title="操作日志" size="small" class="mt-[10px]">
           <template #extra>
             <Button type="link" size="small">查看全部</Button>
           </template>
@@ -313,7 +313,7 @@ function navTo(path: string) {
         </Card>
 
         <!-- 系统资源 -->
-        <Card title="系统资源" size="small">
+        <Card title="系统资源" size="small" class="mt-[10px]">
           <template #extra>
             <span class="text-xs text-gray-400">实时</span>
           </template>
