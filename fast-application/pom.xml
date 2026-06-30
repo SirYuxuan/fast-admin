@@ -29,6 +29,12 @@
                   <artifactId>fast-ai</artifactId>
             </dependency>
 
+            <!-- Fast 工作流模块（Flowable BPMN） -->
+            <dependency>
+                  <groupId>cc.oofo</groupId>
+                  <artifactId>fast-flow</artifactId>
+            </dependency>
+
 
             <!-- SpringBoot WEB -->
             <dependency>

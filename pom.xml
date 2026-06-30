@@ -22,6 +22,7 @@
         <module>fast-system</module>
         <module>fast-biz-simple</module>
         <module>fast-ai</module>
+        <module>fast-flow</module>
         <module>fast-application</module>
     </modules>
 
@@ -47,6 +48,7 @@
         <knife4j.version>4.5.0</knife4j.version>
         <springdoc.version>3.0.3</springdoc.version>
         <spring.ai.version>2.0.0</spring.ai.version>
+        <flowable.version>8.0.0</flowable.version>
     </properties>
 
     <dependencyManagement>
@@ -214,6 +216,18 @@
                 <groupId>cc.oofo</groupId>
                 <artifactId>fast-ai</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cc.oofo</groupId>
+                <artifactId>fast-flow</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Flowable BPMN 流程引擎（Spring Boot 4 支持自 8.0.0 起） -->
+            <dependency>
+                <groupId>org.flowable</groupId>
+                <artifactId>flowable-spring-boot-starter-process</artifactId>
+                <version>${flowable.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

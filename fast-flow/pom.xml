@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cc.oofo</groupId>
+        <artifactId>fast-admin</artifactId>
+        <version>0.0.1-dev</version>
+    </parent>
+
+    <artifactId>fast-flow</artifactId>
+    <packaging>jar</packaging>
+    <description>工作流模块（Flowable BPMN）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cc.oofo</groupId>
+            <artifactId>fast-system</artifactId>
+        </dependency>
+
+        <!-- Flowable BPMN 流程引擎 starter（复用项目数据源与事务管理器） -->
+        <dependency>
+            <groupId>org.flowable</groupId>
+            <artifactId>flowable-spring-boot-starter-process</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

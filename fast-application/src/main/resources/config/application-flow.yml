@@ -1,0 +1,11 @@
+flowable:
+  # 启动时自动创建/升级 ACT_* 表结构（PoC 阶段开启，生产可改为 false 后手动管理）
+  database-schema-update: true
+  # 历史数据记录级别（full：保留所有审批轨迹，事项中心“已办”依赖它）
+  history-level: full
+  # PoC 阶段关闭异步执行器，避免引入额外线程池干扰启动验证
+  async-executor-activate: false
+  process:
+    # 关闭 BPMN 自动资源部署（不扫描 classpath 下的 *.bpmn20.xml）
+    servlet:
+      load-on-startup: -1
