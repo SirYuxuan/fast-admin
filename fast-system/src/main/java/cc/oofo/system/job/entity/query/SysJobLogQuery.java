@@ -11,10 +11,10 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class SysJobLogQuery extends BaseQuery<SysJobLog> {
 
-    @QueryField
+    @QueryField(prop = "job_id")
     private String jobId;
 
-    @QueryField(operator = Operator.LIKE)
+    @QueryField(prop = "job_name", operator = Operator.LIKE)
     private String jobName;
 
     @QueryField
