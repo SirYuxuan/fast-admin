@@ -11,6 +11,7 @@ export function useGridFormSchema(): VbenFormSchema[] {
       componentProps: {
         allowClear: true,
         options: [
+          { label: '执行中', value: 2 },
           { label: '成功', value: 1 },
           { label: '失败', value: 0 },
         ],
@@ -36,6 +37,7 @@ export function useColumns<T = SysJobApi.JobLog>(
       cellRender: {
         name: 'CellTag',
         options: [
+          { label: '执行中', value: 2, color: 'processing' },
           { label: '成功', value: 1, color: 'success' },
           { label: '失败', value: 0, color: 'error' },
         ],
@@ -54,12 +56,12 @@ export function useColumns<T = SysJobApi.JobLog>(
       cellRender: {
         attrs: { onClick: onActionClick },
         name: 'CellOperation',
-        options: [{ code: 'delete' }],
+        options: [{ code: 'detail', text: '详情' }, { code: 'delete' }],
       },
       field: 'operation',
       fixed: 'right',
       title: '操作',
-      width: 100,
+      width: 140,
     },
   ];
 }

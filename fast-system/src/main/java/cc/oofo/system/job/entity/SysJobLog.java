@@ -30,7 +30,7 @@ public class SysJobLog extends Model<SysJobLog> {
     private String beanName;
     private String methodName;
     private String methodParams;
-    /** 1成功 0失败 */
+    /** 2执行中 1成功 0失败 */
     private Integer status;
     private Long costTime;
     private String errorMsg;
