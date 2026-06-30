@@ -76,8 +76,8 @@ public class AiChatClientFactory {
     }
 
     /**
-     * 内置工具默认使用 auto：挂载已启用且有权限的普通工具和只读 SQL。
-     * 执行任意 SQL 这类高风险工具只在 manual 模式显式选择时才会挂载。
+     * 内置工具默认使用 auto：挂载已启用且有权限的普通工具、只读 SQL 以及执行 SQL。
+     * 执行 SQL 仍受全局开关、操作权限、非演示模式三重约束，并在调用前需用户二次确认。
      */
     private List<ToolCallback> resolveBuiltinCallbacks(AiChatRequest request, String sessionId, String operatorId,
             List<String> safePermissions, Consumer<AiChatSseEvent> eventSink) {
@@ -91,7 +91,9 @@ public class AiChatClientFactory {
             return toolCallbackService.listEnabledCallbacks(sessionId, operatorId, safePermissions,
                     selectedToolCodes, includeExecuteSql, eventSink);
         }
-        return toolCallbackService.listEnabledCallbacks(sessionId, operatorId, safePermissions, eventSink);
+        // auto：挂载全部已启用工具，执行 SQL 也包含在内（仍由开关/权限/演示模式与二次确认兜底）
+        return toolCallbackService.listEnabledCallbacks(sessionId, operatorId, safePermissions,
+                null, true, eventSink);
     }
 
     /**
