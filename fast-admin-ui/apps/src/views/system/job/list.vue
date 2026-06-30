@@ -1,8 +1,5 @@
 <script lang="ts" setup>
-import type {
-  OnActionClickParams,
-  VxeTableGridOptions,
-} from '#/adapter/vxe-table';
+import type { OnActionClickParams, VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { SysJobApi } from '#/api/system/job';
 
 import { useRouter } from 'vue-router';
@@ -14,13 +11,7 @@ import { Plus } from '@vben/icons';
 import { Button, message, Modal as AModal } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
-import {
-  deleteJob,
-  getJobPage,
-  pauseJob,
-  runJobOnce,
-  startJob,
-} from '#/api/system/job';
+import { deleteJob, getJobPage, pauseJob, runJobOnce, startJob } from '#/api/system/job';
 
 import { useColumns, useGridFormSchema } from './data';
 import Form from './modules/form.vue';
@@ -47,20 +38,39 @@ function onActionClick({ code, row }: OnActionClickParams<SysJobApi.Job>) {
       break;
     }
     case 'run': {
-      runJobOnce(row.id).then(() => {
-        message.success(`已触发执行：${row.jobName}`);
-      });
+      runJob(row);
       break;
     }
-    case 'toggle': {
-      const isRunning = row.status === 1;
-      const promise = isRunning ? pauseJob(row.id) : startJob(row.id);
-      promise.then(() => {
-        message.success(isRunning ? '已暂停' : '已启动');
-        refresh();
-      });
+    case 'log': {
+      gotoLog(row);
       break;
     }
+  }
+}
+
+async function runJob(row: SysJobApi.Job) {
+  if (row.__running) return;
+  row.__running = true;
+  try {
+    await runJobOnce(row.id);
+    message.success(`已触发执行：${row.jobName}`);
+  } finally {
+    row.__running = false;
+  }
+}
+
+async function onStatusChange(newStatus: number, row: SysJobApi.Job) {
+  try {
+    if (newStatus === 1) {
+      await startJob(row.id);
+      message.success(`已启动：${row.jobName}`);
+    } else {
+      await pauseJob(row.id);
+      message.success(`已暂停：${row.jobName}`);
+    }
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -71,7 +81,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
     collapsed: true,
   },
   gridOptions: {
-    columns: useColumns(onActionClick),
+    columns: useColumns(onActionClick, onStatusChange),
     height: 'auto',
     keepSource: true,
     proxyConfig: {
@@ -98,8 +108,11 @@ function onSuccess() {
   refresh();
 }
 
-function gotoLog() {
-  router.push('/system/job/log');
+function gotoLog(row?: SysJobApi.Job) {
+  router.push({
+    path: '/system/job/log',
+    query: row ? { jobId: row.id, jobName: row.jobName } : undefined,
+  });
 }
 </script>
 
@@ -108,7 +121,7 @@ function gotoLog() {
     <Grid table-title="定时任务">
       <template #toolbar-tools>
         <div class="flex items-center gap-2">
-          <Button @click="gotoLog">执行日志</Button>
+          <Button @click="gotoLog()">执行日志</Button>
           <AccessControl type="code" :codes="['system:job:add']">
             <Button type="primary" @click="formModalApi.setData(null).open()">
               <Plus class="size-5" />

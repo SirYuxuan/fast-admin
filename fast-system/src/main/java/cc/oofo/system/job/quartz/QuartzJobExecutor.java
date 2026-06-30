@@ -46,6 +46,17 @@ public class QuartzJobExecutor implements Job {
         logEntity.setBeanName(job.getBeanName());
         logEntity.setMethodName(job.getMethodName());
         logEntity.setMethodParams(job.getMethodParams());
+        logEntity.setStatus(2);
+        logEntity.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+
+        SysJobLogMapper logMapper = SpringContextHolder.getBean(SysJobLogMapper.class);
+        boolean logInserted = false;
+        try {
+            logMapper.insert(logEntity);
+            logInserted = true;
+        } catch (Exception ex) {
+            log.error("写入定时任务执行中日志失败", ex);
+        }
 
         try {
             doInvoke(job);
@@ -56,11 +67,14 @@ public class QuartzJobExecutor implements Job {
             logEntity.setErrorMsg(rootCauseMessage(e));
         } finally {
             logEntity.setCostTime(System.currentTimeMillis() - start);
-            logEntity.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             try {
-                SpringContextHolder.getBean(SysJobLogMapper.class).insert(logEntity);
+                if (logInserted) {
+                    logMapper.updateById(logEntity);
+                } else {
+                    logMapper.insert(logEntity);
+                }
             } catch (Exception ex) {
-                log.error("写入定时任务日志失败", ex);
+                log.error("更新定时任务日志失败", ex);
             }
         }
     }

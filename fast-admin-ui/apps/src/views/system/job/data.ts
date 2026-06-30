@@ -111,6 +111,7 @@ export function useFormSchema(): VbenFormSchema[] {
 
 export function useColumns<T = SysJobApi.Job>(
   onActionClick: OnActionClickFn<T>,
+  onStatusChange?: (newStatus: any, row: T) => PromiseLike<boolean | undefined>,
 ): VxeTableGridOptions['columns'] {
   return [
     { field: 'jobName', title: '任务名称', minWidth: 160 },
@@ -123,7 +124,8 @@ export function useColumns<T = SysJobApi.Job>(
       title: '状态',
       width: 90,
       cellRender: {
-        name: 'CellTag',
+        attrs: { beforeChange: onStatusChange },
+        name: onStatusChange ? 'CellSwitch' : 'CellTag',
         options: [
           { label: '运行中', value: 1, color: 'success' },
           { label: '暂停', value: 0, color: 'default' },
@@ -143,8 +145,13 @@ export function useColumns<T = SysJobApi.Job>(
         attrs: { onClick: onActionClick },
         name: 'CellOperation',
         options: [
-          { code: 'run', text: '执行一次' },
-          { code: 'toggle', text: '启停' },
+          {
+            code: 'run',
+            disabled: (row: SysJobApi.Job) => row.__running,
+            loading: (row: SysJobApi.Job) => row.__running,
+            text: '执行',
+          },
+          { code: 'log', text: '日志' },
           { code: 'edit' },
           { code: 'delete' },
         ],
@@ -152,7 +159,7 @@ export function useColumns<T = SysJobApi.Job>(
       field: 'operation',
       fixed: 'right',
       title: '操作',
-      width: 260,
+      width: 280,
     },
   ];
 }
